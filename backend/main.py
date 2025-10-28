@@ -5,20 +5,19 @@ from typing import List, Dict, Optional
 import models
 from database import engine, get_db, init_db
 from models import (
-    UserCreate, UserResponse, CheckInCreate, CheckInUpdate,
-    AgentAdviceResponse, GitHubAnalysisResponse
+    UserCreate, UserResponse, CheckInCreate, CheckInUpdate, CheckInResponse,
+    AgentAdviceResponse, GitHubAnalysisResponse, ChatMessage,
+    LifeDecisionCreate, LifeDecisionResponse
 )
 from github_integration import GitHubAnalyzer
 from crew import SageMentorCrew
 from datetime import datetime, timedelta
 from pydantic import BaseModel
 
-# Initialize database
 init_db()
 
 app = FastAPI(title="Sage AI Mentor API", version="1.0.0")
 
-# CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:3000"],
@@ -27,34 +26,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Initialize services
 github_analyzer = GitHubAnalyzer()
 sage_crew = SageMentorCrew()
-
-# New Pydantic Models
-class ChatMessage(BaseModel):
-    message: str
-    context: Optional[Dict] = None
-
-class LifeDecisionCreate(BaseModel):
-    title: str
-    description: str
-    decision_type: str  # major_decision, mistake, win, pattern
-    impact_areas: List[str]
-    context: Optional[Dict] = None
-
-class LifeDecisionResponse(BaseModel):
-    id: int
-    title: str
-    description: str
-    decision_type: str
-    impact_areas: List[str]
-    timestamp: datetime
-    ai_analysis: Optional[str] = None
-    lessons_learned: Optional[List[str]] = None
-    
-    class Config:
-        from_attributes = True
 
 @app.get("/")
 def read_root():
@@ -64,12 +37,8 @@ def read_root():
         "status": "running"
     }
 
-# ==================== EXISTING ENDPOINTS ====================
-
-# User Management
 @app.post("/users", response_model=UserResponse)
 def create_user(user: UserCreate, db: Session = Depends(get_db)):
-    """Create a new user"""
     db_user = db.query(models.User).filter(
         models.User.github_username == user.github_username
     ).first()
@@ -89,7 +58,6 @@ def create_user(user: UserCreate, db: Session = Depends(get_db)):
 
 @app.get("/users/{github_username}", response_model=UserResponse)
 def get_user(github_username: str, db: Session = Depends(get_db)):
-    """Get user by GitHub username"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -99,11 +67,8 @@ def get_user(github_username: str, db: Session = Depends(get_db)):
     
     return user
 
-# GitHub Analysis
 @app.post("/analyze-github/{github_username}")
 def analyze_github(github_username: str, db: Session = Depends(get_db)):
-    """Analyze GitHub profile and get AI insights"""
-    
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -144,21 +109,14 @@ def analyze_github(github_username: str, db: Session = Depends(get_db)):
     
     crew_result = sage_crew.analyze_developer(github_data, checkin_history)
     
-    agents_insights = [
-        ("Analyst", "Data analysis completed"),
-        ("Psychologist", "Pattern analysis completed"),
-        ("Strategist", crew_result["agent_insights"]["full_analysis"])
-    ]
-    
-    for agent_name, advice_text in agents_insights:
-        advice = models.AgentAdvice(
-            user_id=user.id,
-            agent_name=agent_name,
-            advice=advice_text,
-            evidence=github_data
-        )
-        db.add(advice)
-    
+    advice = models.AgentAdvice(
+        user_id=user.id,
+        agent_name="Multi-Agent Analysis",
+        advice=crew_result["agent_insights"]["full_analysis"],
+        evidence=github_data,
+        interaction_type="analysis"
+    )
+    db.add(advice)
     db.commit()
     
     return {
@@ -169,7 +127,6 @@ def analyze_github(github_username: str, db: Session = Depends(get_db)):
 
 @app.get("/github-analysis/{github_username}", response_model=GitHubAnalysisResponse)
 def get_github_analysis(github_username: str, db: Session = Depends(get_db)):
-    """Get latest GitHub analysis for user"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -186,31 +143,18 @@ def get_github_analysis(github_username: str, db: Session = Depends(get_db)):
     
     return analysis
 
-# Daily Check-ins
 @app.post("/checkins/{github_username}")
 def create_checkin(
     github_username: str,
     checkin: CheckInCreate,
     db: Session = Depends(get_db)
 ):
-    """Create morning check-in"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
     
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
-    new_checkin = models.CheckIn(
-        user_id=user.id,
-        energy_level=checkin.energy_level,
-        avoiding_what=checkin.avoiding_what,
-        commitment=checkin.commitment,
-        mood=checkin.mood
-    )
-    db.add(new_checkin)
-    db.commit()
-    db.refresh(new_checkin)
     
     recent_checkins = db.query(models.CheckIn).filter(
         models.CheckIn.user_id == user.id
@@ -232,6 +176,29 @@ def create_checkin(
         history
     )
     
+    new_checkin = models.CheckIn(
+        user_id=user.id,
+        energy_level=checkin.energy_level,
+        avoiding_what=checkin.avoiding_what,
+        commitment=checkin.commitment,
+        mood=checkin.mood,
+        ai_analysis=analysis["analysis"]
+    )
+    db.add(new_checkin)
+    
+    # Store as interaction
+    advice = models.AgentAdvice(
+        user_id=user.id,
+        agent_name="Psychologist",
+        advice=analysis["analysis"],
+        evidence={"checkin": checkin.dict()},
+        interaction_type="checkin"
+    )
+    db.add(advice)
+    
+    db.commit()
+    db.refresh(new_checkin)
+    
     return {
         "checkin_id": new_checkin.id,
         "ai_response": analysis["analysis"],
@@ -244,7 +211,6 @@ def evening_checkin(
     update: CheckInUpdate,
     db: Session = Depends(get_db)
 ):
-    """Update check-in with evening results"""
     checkin = db.query(models.CheckIn).filter(
         models.CheckIn.id == checkin_id
     ).first()
@@ -267,13 +233,12 @@ def evening_checkin(
         "ai_feedback": feedback["feedback"]
     }
 
-@app.get("/checkins/{github_username}")
+@app.get("/checkins/{github_username}", response_model=List[CheckInResponse])
 def get_checkins(
     github_username: str,
     limit: int = 30,
     db: Session = Depends(get_db)
 ):
-    """Get user's check-in history"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -285,23 +250,10 @@ def get_checkins(
         models.CheckIn.user_id == user.id
     ).order_by(models.CheckIn.timestamp.desc()).limit(limit).all()
     
-    return {
-        "checkins": [
-            {
-                "id": c.id,
-                "date": c.timestamp.strftime("%Y-%m-%d"),
-                "energy_level": c.energy_level,
-                "commitment": c.commitment,
-                "shipped": c.shipped,
-                "excuse": c.excuse
-            }
-            for c in checkins
-        ]
-    }
+    return checkins
 
 @app.get("/advice/{github_username}", response_model=List[AgentAdviceResponse])
-def get_advice(github_username: str, db: Session = Depends(get_db)):
-    """Get all AI advice for user"""
+def get_advice(github_username: str, limit: int = 20, db: Session = Depends(get_db)):
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -311,13 +263,12 @@ def get_advice(github_username: str, db: Session = Depends(get_db)):
     
     advice = db.query(models.AgentAdvice).filter(
         models.AgentAdvice.user_id == user.id
-    ).order_by(models.AgentAdvice.created_at.desc()).limit(10).all()
+    ).order_by(models.AgentAdvice.created_at.desc()).limit(limit).all()
     
     return advice
 
 @app.get("/dashboard/{github_username}")
 def get_dashboard(github_username: str, db: Session = Depends(get_db)):
-    """Get complete dashboard data"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -360,15 +311,15 @@ def get_dashboard(github_username: str, db: Session = Depends(get_db)):
         },
         "recent_advice": [
             {
+                "id": a.id,
                 "agent": a.agent_name,
                 "advice": a.advice[:200] + "..." if len(a.advice) > 200 else a.advice,
-                "date": a.created_at.strftime("%Y-%m-%d")
+                "date": a.created_at.strftime("%Y-%m-%d"),
+                "type": a.interaction_type
             }
             for a in latest_advice
         ]
     }
-
-# ==================== NEW CHAT ENDPOINTS ====================
 
 @app.post("/chat/{github_username}")
 async def chat_with_mentor(
@@ -376,7 +327,6 @@ async def chat_with_mentor(
     message: ChatMessage,
     db: Session = Depends(get_db)
 ):
-    """Chat with the AI mentor with multi-agent deliberation"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -384,7 +334,6 @@ async def chat_with_mentor(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Get user context
     github_analysis = db.query(models.GitHubAnalysis).filter(
         models.GitHubAnalysis.user_id == user.id
     ).order_by(models.GitHubAnalysis.analyzed_at.desc()).first()
@@ -419,19 +368,18 @@ async def chat_with_mentor(
         ]
     }
     
-    # Run multi-agent deliberation
     deliberation = sage_crew.chat_deliberation(
         message.message,
         user_context,
         message.context
     )
     
-    # Save conversation
     advice = models.AgentAdvice(
         user_id=user.id,
         agent_name="Multi-Agent Chat",
         advice=deliberation["final_response"],
-        evidence={"user_message": message.message, "deliberation": deliberation["debate"]}
+        evidence={"user_message": message.message, "deliberation": deliberation["debate"]},
+        interaction_type="chat"
     )
     db.add(advice)
     db.commit()
@@ -440,10 +388,9 @@ async def chat_with_mentor(
         "response": deliberation["final_response"],
         "agent_debate": deliberation["debate"],
         "key_insights": deliberation["key_insights"],
-        "recommended_actions": deliberation["actions"]
+        "recommended_actions": deliberation["actions"],
+        "interaction_id": advice.id
     }
-
-# ==================== LIFE DECISIONS ENDPOINTS ====================
 
 @app.post("/life-decisions/{github_username}", response_model=LifeDecisionResponse)
 def create_life_decision(
@@ -451,7 +398,6 @@ def create_life_decision(
     decision: LifeDecisionCreate,
     db: Session = Depends(get_db)
 ):
-    """Log a major life decision for AI analysis"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -459,11 +405,11 @@ def create_life_decision(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    # Create life event
     life_event = models.LifeEvent(
         user_id=user.id,
         event_type=decision.decision_type,
         description=decision.title,
+        time_horizon=decision.time_horizon,
         context={
             "full_description": decision.description,
             "impact_areas": decision.impact_areas,
@@ -474,19 +420,18 @@ def create_life_decision(
     db.commit()
     db.refresh(life_event)
     
-    # Get AI analysis
     analysis = sage_crew.analyze_life_decision(
         {
             "title": decision.title,
             "description": decision.description,
             "type": decision.decision_type,
-            "impact_areas": decision.impact_areas
+            "impact_areas": decision.impact_areas,
+            "time_horizon": decision.time_horizon
         },
         user.id,
         db
     )
     
-    # Update with AI insights
     life_event.context["ai_analysis"] = analysis["analysis"]
     life_event.context["lessons"] = analysis["lessons"]
     life_event.outcome = analysis["long_term_impact"]
@@ -499,6 +444,7 @@ def create_life_decision(
         "decision_type": decision.decision_type,
         "impact_areas": decision.impact_areas,
         "timestamp": life_event.timestamp,
+        "time_horizon": decision.time_horizon,
         "ai_analysis": analysis["analysis"],
         "lessons_learned": analysis["lessons"]
     }
@@ -509,7 +455,6 @@ def get_life_decisions(
     limit: int = 20,
     db: Session = Depends(get_db)
 ):
-    """Get all life decisions with AI analysis"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -529,6 +474,7 @@ def get_life_decisions(
             "decision_type": e.event_type,
             "impact_areas": e.context.get("impact_areas", []),
             "timestamp": e.timestamp,
+            "time_horizon": e.time_horizon,
             "ai_analysis": e.context.get("ai_analysis"),
             "lessons_learned": e.context.get("lessons", [])
         }
@@ -541,7 +487,6 @@ def evaluate_decision(
     evaluation: Dict,
     db: Session = Depends(get_db)
 ):
-    """Re-evaluate a past decision with current context"""
     event = db.query(models.LifeEvent).filter(
         models.LifeEvent.id == decision_id
     ).first()
@@ -551,7 +496,6 @@ def evaluate_decision(
     
     user = db.query(models.User).filter(models.User.id == event.user_id).first()
     
-    # Re-evaluate with current context
     re_evaluation = sage_crew.reevaluate_decision(
         event,
         evaluation.get("current_situation", ""),
@@ -560,7 +504,6 @@ def evaluate_decision(
         db
     )
     
-    # Update the event
     if "re_evaluations" not in event.context:
         event.context["re_evaluations"] = []
     

@@ -195,7 +195,7 @@ Additional Context: {additional_context if additional_context else 'None'}
         ).order_by(models.LifeEvent.timestamp.desc()).limit(5).all()
         
         past_context = "\n".join([
-            f"- {e.description} ({e.event_type}): {e.outcome or 'No outcome recorded'}"
+            f"- {e.description} ({e.event_type})" # Removed the incorrect e.outcome reference
             for e in past_decisions
         ])
         
