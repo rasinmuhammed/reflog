@@ -2,6 +2,7 @@ from crewai import Task, Crew, Process
 from agents import analyst, psychologist, strategist, contrarian
 from typing import Dict, List
 import json
+import models
 from datetime import datetime
 
 class SageMentorCrew:
@@ -12,14 +13,10 @@ class SageMentorCrew:
         self.contrarian = contrarian
     
     def analyze_developer(self, github_data: Dict, checkin_history: List[Dict] = None) -> Dict:
-        """
-        Main analysis flow: All agents deliberate on the developer's situation
-        """
+        """Main analysis flow: All agents deliberate on the developer's situation"""
         
-        # Prepare context
         context = self._prepare_context(github_data, checkin_history)
         
-        # Task 1: Analyst examines the data
         analysis_task = Task(
             description=f"""Analyze this developer's GitHub data and extract key insights:
             
@@ -38,7 +35,6 @@ class SageMentorCrew:
             expected_output="A detailed analysis report with specific metrics and patterns"
         )
         
-        # Task 2: Psychologist interprets patterns
         psychology_task = Task(
             description=f"""Based on the analyst's findings and this context:
             
@@ -57,7 +53,6 @@ class SageMentorCrew:
             context=[analysis_task]
         )
         
-        # Task 3: Strategist creates action plan
         strategy_task = Task(
             description=f"""Based on the Analyst's data and Psychologist's insights:
             
@@ -78,7 +73,6 @@ class SageMentorCrew:
             context=[analysis_task, psychology_task]
         )
         
-        # Create and run the crew
         crew = Crew(
             agents=[self.analyst, self.psychologist, self.strategist],
             tasks=[analysis_task, psychology_task, strategy_task],
@@ -88,13 +82,228 @@ class SageMentorCrew:
         
         result = crew.kickoff()
         
-        # Parse and structure the output
         return self._structure_output(result, github_data)
     
+    def chat_deliberation(self, user_message: str, user_context: Dict, additional_context: Dict = None) -> Dict:
+        """Multi-agent deliberation for chat messages"""
+        
+        context_str = f"""
+User Context:
+- GitHub: {user_context['github']}
+- Recent Performance: {user_context['recent_performance']}
+- Life Decisions: {user_context['life_decisions']}
+
+Additional Context: {additional_context if additional_context else 'None'}
+"""
+        
+        analyst_task = Task(
+            description=f"""Analyze this user's question from a data perspective:
+            
+            User Question: "{user_message}"
+            
+            {context_str}
+            
+            Your job:
+            1. What does their data say about this question?
+            2. Any patterns that relate to what they're asking?
+            3. What are they NOT seeing in their own behavior?
+            4. Provide specific numbers and facts
+            
+            Be direct. Point out contradictions between what they ask and what their data shows.""",
+            agent=self.analyst,
+            expected_output="Data-driven analysis with specific metrics and patterns"
+        )
+        
+        psychologist_task = Task(
+            description=f"""Based on the Analyst's findings and the user's question:
+            
+            User Question: "{user_message}"
+            
+            Your job:
+            1. What are they REALLY asking? (look beyond the surface)
+            2. What psychological patterns are at play?
+            3. What are they avoiding by asking this question?
+            4. What fear or insecurity is driving this?
+            
+            Be empathetic but unflinchingly honest. Call out self-deception.""",
+            agent=self.psychologist,
+            expected_output="Psychological interpretation with underlying motivations",
+            context=[analyst_task]
+        )
+        
+        contrarian_task = Task(
+            description=f"""Challenge everything said so far:
+            
+            User Question: "{user_message}"
+            
+            Your job:
+            1. What assumptions are the user making that might be wrong?
+            2. What if the OPPOSITE of what they're asking is true?
+            3. What uncomfortable truth are they not ready to hear?
+            4. Play devil's advocate ruthlessly
+            
+            Ask the hard questions. No sugar coating.""",
+            agent=self.contrarian,
+            expected_output="Contrarian perspective challenging core assumptions",
+            context=[analyst_task, psychologist_task]
+        )
+        
+        strategist_task = Task(
+            description=f"""Synthesize all agent perspectives and create actionable response:
+            
+            User Question: "{user_message}"
+            
+            Your job:
+            1. Synthesize Analyst, Psychologist, and Contrarian perspectives
+            2. Give ONE clear, direct answer to their question
+            3. Provide 2-3 specific, immediate actions (with timeframes)
+            4. Call out any BS in their question or underlying assumptions
+            5. What should they do RIGHT NOW (today)?
+            
+            Be brutally specific. No vague advice. Include deadlines and metrics.""",
+            agent=self.strategist,
+            expected_output="Actionable response with specific steps and timeframes",
+            context=[analyst_task, psychologist_task, contrarian_task]
+        )
+        
+        crew = Crew(
+            agents=[self.analyst, self.psychologist, self.contrarian, self.strategist],
+            tasks=[analyst_task, psychologist_task, contrarian_task, strategist_task],
+            process=Process.sequential,
+            verbose=True
+        )
+        
+        result = crew.kickoff()
+        
+        return {
+            "final_response": str(result),
+            "debate": [
+                {"agent": "Analyst", "perspective": "Data-driven reality check", "color": "blue"},
+                {"agent": "Psychologist", "perspective": "Underlying psychology", "color": "purple"},
+                {"agent": "Contrarian", "perspective": "Challenging assumptions", "color": "red"},
+                {"agent": "Strategist", "perspective": "Actionable synthesis", "color": "green"}
+            ],
+            "key_insights": self._extract_key_points(str(result)),
+            "actions": self._extract_actions(str(result))
+        }
+    
+    def analyze_life_decision(self, decision: Dict, user_id: int, db) -> Dict:
+        """Analyze a major life decision"""
+        
+        past_decisions = db.query(models.LifeEvent).filter(
+            models.LifeEvent.user_id == user_id
+        ).order_by(models.LifeEvent.timestamp.desc()).limit(5).all()
+        
+        past_context = "\n".join([
+            f"- {e.description} ({e.event_type}): {e.outcome or 'No outcome recorded'}"
+            for e in past_decisions
+        ])
+        
+        analysis_task = Task(
+            description=f"""Analyze this life decision comprehensively:
+            
+            Decision: {decision['title']}
+            Description: {decision['description']}
+            Type: {decision['type']}
+            Impact Areas: {decision['impact_areas']}
+            
+            Past Decisions:
+            {past_context}
+            
+            Your job:
+            1. Analyze this decision critically (what's good, what's risky)
+            2. How does it fit their past decision patterns?
+            3. What are they not considering?
+            4. Rate this decision on a scale of 1-10 (with reasoning)
+            5. Extract 3-5 key lessons from this decision
+            6. How can they use this experience going forward?
+            7. What could go wrong? What could go right?
+            
+            Be honest. If it's a bad decision, say so. If it's good, explain why.
+            Focus on extracting transferable lessons.""",
+            agent=self.strategist,
+            expected_output="Comprehensive analysis with lessons and future guidance"
+        )
+        
+        crew = Crew(
+            agents=[self.strategist],
+            tasks=[analysis_task],
+            process=Process.sequential,
+            verbose=False
+        )
+        
+        result = crew.kickoff()
+        result_str = str(result)
+        
+        lessons = []
+        for line in result_str.split('\n'):
+            line = line.strip()
+            if any(keyword in line.lower() for keyword in ['lesson:', 'learn:', 'takeaway:', 'insight:']):
+                lessons.append(line.split(':', 1)[-1].strip())
+        
+        return {
+            "analysis": result_str,
+            "lessons": lessons[:5] if lessons else ["Reflect on the decision-making process"],
+            "long_term_impact": "Use this decision as a reference point for future choices"
+        }
+    
+    def reevaluate_decision(self, original_event, current_situation: str, what_changed: str, user_id: int, db) -> Dict:
+        """Re-evaluate a past decision with hindsight"""
+        
+        reevaluation_task = Task(
+            description=f"""Re-evaluate this past decision with hindsight:
+            
+            Original Decision: {original_event.description}
+            Original Analysis: {original_event.context.get('ai_analysis', 'No original analysis')}
+            Time Since Decision: {(datetime.now() - original_event.timestamp).days} days
+            
+            Current Situation: {current_situation}
+            What Changed: {what_changed}
+            
+            Your job:
+            1. How did this decision age? (Good? Bad? Neutral?)
+            2. What would you tell your past self now?
+            3. What NEW lessons emerged that weren't visible before?
+            4. How should this update their decision-making framework?
+            5. Rate: Did this decision help or hurt them? (1-10 scale)
+            
+            Be brutally honest about what they got right and wrong.
+            Focus on extracting wisdom from hindsight.""",
+            agent=self.psychologist,
+            expected_output="Honest retrospective with updated lessons"
+        )
+        
+        crew = Crew(
+            agents=[self.psychologist],
+            tasks=[reevaluation_task],
+            process=Process.sequential,
+            verbose=False
+        )
+        
+        result = crew.kickoff()
+        result_str = str(result)
+        
+        new_lessons = []
+        for line in result_str.split('\n'):
+            line = line.strip()
+            if 'lesson' in line.lower() or 'learned' in line.lower():
+                new_lessons.append(line)
+        
+        if 'good decision' in result_str.lower() or 'right choice' in result_str.lower():
+            aging = "Aged well - good decision"
+        elif 'bad decision' in result_str.lower() or 'mistake' in result_str.lower():
+            aging = "Aged poorly - learning opportunity"
+        else:
+            aging = "Mixed results - nuanced outcome"
+        
+        return {
+            "analysis": result_str,
+            "new_lessons": new_lessons[:3] if new_lessons else ["Continue observing outcomes"],
+            "how_it_aged": aging
+        }
+    
     def quick_checkin_analysis(self, checkin_data: Dict, user_history: Dict) -> Dict:
-        """
-        Quick analysis for daily check-ins
-        """
+        """Quick analysis for daily check-ins"""
         
         checkin_task = Task(
             description=f"""Analyze this daily check-in:
@@ -130,9 +339,7 @@ class SageMentorCrew:
         return {"analysis": str(result)}
     
     def evening_checkin_review(self, morning_commitment: str, shipped: bool, excuse: str = None) -> Dict:
-        """
-        Review whether user followed through on morning commitment
-        """
+        """Review whether user followed through on morning commitment"""
         
         review_task = Task(
             description=f"""Review this day's outcome:
@@ -193,7 +400,6 @@ class SageMentorCrew:
     
     def _extract_key_points(self, text: str) -> List[str]:
         """Extract key points from the analysis"""
-        # Simple extraction - in production, use better NLP
         lines = text.split('\n')
         key_points = []
         
@@ -206,7 +412,7 @@ class SageMentorCrew:
             ):
                 key_points.append(line.lstrip('-•').strip())
         
-        return key_points[:5]  # Top 5 points
+        return key_points[:5]
     
     def _extract_actions(self, text: str) -> List[Dict]:
         """Extract actionable items from the strategist's output"""
@@ -221,6 +427,4 @@ class SageMentorCrew:
                     "priority": "high" if "critical" in line.lower() or "must" in line.lower() else "medium"
                 })
         
-        return actions[:3]  # Top 3 actions
-
-
+        return actions[:3]

@@ -1,31 +1,37 @@
-from crewai import Agent
-from langchain_groq import ChatGroq
+from crewai import Agent, LLM
 import os
 from dotenv import load_dotenv
 
 load_dotenv()
 
-# --- Forcefully unset OpenAI key in the environment for this script run ---
-# This helps prevent crewai/langchain from defaulting to OpenAI
-os.environ["OPENAI_API_KEY"] = ""
-# You might also need to unset other related OpenAI variables if they exist in your .env
-os.environ["OPENAI_API_BASE"] = ""
-os.environ["OPENAI_MODEL_NAME"] = ""
-# --- End of forceful unset ---
+# CRITICAL: Remove any OpenAI references from environment
+for key in list(os.environ.keys()):
+    if 'OPENAI' in key:
+        del os.environ[key]
 
-
-# Get Groq credentials from environment variables
+# Get Groq credentials
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
 
-# Check if Groq key is actually loaded
 if not GROQ_API_KEY:
-    raise ValueError("GROQ_API_KEY is not set in the environment variables. Please check your .env file.")
+    raise ValueError(
+        "GROQ_API_KEY is not set! Please add it to backend/.env\n"
+        "Get your free API key from: https://console.groq.com"
+    )
 
+print(f"✓ Using Groq model: {GROQ_MODEL}")
 
-# --- LLM Instantiation moved inside each Agent ---
+# Set Groq API key for LiteLLM
+os.environ["GROQ_API_KEY"] = GROQ_API_KEY
 
-# Agent 1: The Analyst (Data Gatherer)
+# Use CrewAI's LLM class with Groq provider via LiteLLM
+# LiteLLM format for Groq: groq/model-name
+groq_llm = LLM(
+    model=f"groq/{GROQ_MODEL}",
+    temperature=0.7
+)
+
+# Agent 1: The Analyst
 analyst = Agent(
     role="Data Analyst",
     goal="Analyze user's GitHub data, coding patterns, and behavior to extract meaningful insights",
@@ -35,15 +41,10 @@ analyst = Agent(
     SAY they do and what their GitHub history SHOWS they do.""",
     verbose=True,
     allow_delegation=False,
-    # Instantiate LLM directly here
-    llm=ChatGroq(
-        temperature=0.7,
-        model_name=GROQ_MODEL,
-        api_key=GROQ_API_KEY
-    )
+    llm=groq_llm
 )
 
-# Agent 2: The Psychologist (Pattern Reader)
+# Agent 2: The Psychologist
 psychologist = Agent(
     role="Developer Psychologist",
     goal="Identify psychological patterns, procrastination triggers, and emotional blockers in developer behavior",
@@ -53,15 +54,10 @@ psychologist = Agent(
     by doing 'productive' busy-work. You're empathetic but direct.""",
     verbose=True,
     allow_delegation=False,
-    # Instantiate LLM directly here
-    llm=ChatGroq(
-        temperature=0.7,
-        model_name=GROQ_MODEL,
-        api_key=GROQ_API_KEY
-    )
+    llm=groq_llm
 )
 
-# Agent 3: The Strategist (Synthesis & Action)
+# Agent 3: The Strategist
 strategist = Agent(
     role="Strategic Advisor",
     goal="Synthesize insights from all agents and create specific, time-bound action plans with accountability",
@@ -71,15 +67,10 @@ strategist = Agent(
     be measurable, time-bound, and realistic. You prioritize ruthlessly based on ROI.""",
     verbose=True,
     allow_delegation=False,
-    # Instantiate LLM directly here
-    llm=ChatGroq(
-        temperature=0.7,
-        model_name=GROQ_MODEL,
-        api_key=GROQ_API_KEY
-    )
+    llm=groq_llm
 )
 
-# Agent 4: The Contrarian (Devil's Advocate) - For future use
+# Agent 4: The Contrarian
 contrarian = Agent(
     role="Devil's Advocate",
     goal="Challenge assumptions and point out contradictions in the user's thinking and behavior",
@@ -89,12 +80,7 @@ contrarian = Agent(
     necessary. You prevent self-delusion.""",
     verbose=True,
     allow_delegation=False,
-    # Instantiate LLM directly here
-    llm=ChatGroq(
-        temperature=0.7,
-        model_name=GROQ_MODEL,
-        api_key=GROQ_API_KEY
-    )
+    llm=groq_llm
 )
 
 def get_agents():

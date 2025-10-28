@@ -106,3 +106,27 @@ class GitHubAnalysisResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class ChatMessage(BaseModel):
+    message: str
+    context: Optional[Dict] = None
+
+class LifeDecisionCreate(BaseModel):
+    title: str
+    description: str
+    decision_type: str  # major_decision, mistake, win, pattern
+    impact_areas: List[str]  # career, relationships, health, finance, etc.
+    context: Optional[Dict] = None
+
+class LifeDecisionResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    decision_type: str
+    impact_areas: List[str]
+    timestamp: datetime
+    ai_analysis: Optional[str] = None
+    lessons_learned: Optional[List[str]] = None
+    
+    class Config:
+        from_attributes = True

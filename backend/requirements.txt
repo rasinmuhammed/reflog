@@ -1,9 +1,8 @@
-
 fastapi
 uvicorn
 crewai
 crewai-tools
-langchain-groq
+litellm
 sqlalchemy
 pydantic
 python-dotenv
