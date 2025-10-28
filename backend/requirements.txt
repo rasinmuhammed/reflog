@@ -1,0 +1,12 @@
+
+fastapi
+uvicorn
+crewai
+crewai-tools
+langchain-groq
+sqlalchemy
+pydantic
+python-dotenv
+PyGithub
+python-multipart
+httpx
