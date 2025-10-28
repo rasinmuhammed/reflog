@@ -4,6 +4,8 @@ from typing import Dict, List
 import json
 import models
 from datetime import datetime
+import io
+import sys
 
 class SageMentorCrew:
     def __init__(self):
@@ -84,17 +86,33 @@ class SageMentorCrew:
         
         return self._structure_output(result, github_data)
     
+    def _capture_output(self, crew):
+        """Capture verbose output from crew execution"""
+        # CrewAI's verbose mode prints to stdout, we'll capture it
+        old_stdout = sys.stdout
+        sys.stdout = captured_output = io.StringIO()
+        
+        try:
+            result = crew.kickoff()
+            output = captured_output.getvalue()
+            self.raw_output = output.split('\n')
+            return result
+        finally:
+            sys.stdout = old_stdout
+    
     def chat_deliberation(self, user_message: str, user_context: Dict, additional_context: Dict = None) -> Dict:
-        """Multi-agent deliberation for chat messages"""
+        """Multi-agent deliberation for chat messages with raw output"""
+        
+        self.raw_output = []  # Reset raw output
         
         context_str = f"""
-User Context:
-- GitHub: {user_context['github']}
-- Recent Performance: {user_context['recent_performance']}
-- Life Decisions: {user_context['life_decisions']}
+        User Context:
+        - GitHub: {user_context['github']}
+        - Recent Performance: {user_context['recent_performance']}
+        - Life Decisions: {user_context['life_decisions']}
 
-Additional Context: {additional_context if additional_context else 'None'}
-"""
+        Additional Context: {additional_context if additional_context else 'None'}
+        """
         
         analyst_task = Task(
             description=f"""Analyze this user's question from a data perspective:
@@ -173,7 +191,11 @@ Additional Context: {additional_context if additional_context else 'None'}
             verbose=True
         )
         
-        result = crew.kickoff()
+        # Capture output
+        result = self._capture_output(crew)
+        
+        # Parse raw output for agent contributions
+        agent_contributions = self._parse_agent_output(self.raw_output)
         
         return {
             "final_response": str(result),
@@ -184,8 +206,54 @@ Additional Context: {additional_context if additional_context else 'None'}
                 {"agent": "Strategist", "perspective": "Actionable synthesis", "color": "green"}
             ],
             "key_insights": self._extract_key_points(str(result)),
-            "actions": self._extract_actions(str(result))
+            "actions": self._extract_actions(str(result)),
+            "raw_deliberation": agent_contributions  # NEW: Raw deliberation data
         }
+    
+    def _parse_agent_output(self, raw_lines: List[str]) -> List[Dict]:
+        """Parse raw output to extract agent contributions"""
+        contributions = []
+        current_agent = None
+        current_output = []
+        
+        for line in raw_lines:
+            # Detect agent starting to work
+            if "Agent:" in line or "Working Agent:" in line:
+                # Save previous agent's output
+                if current_agent and current_output:
+                    contributions.append({
+                        "agent": current_agent,
+                        "output": "\n".join(current_output),
+                        "timestamp": datetime.now().isoformat()
+                    })
+                
+                # Extract agent name
+                if "Data Analyst" in line:
+                    current_agent = "Analyst"
+                elif "Developer Psychologist" in line:
+                    current_agent = "Psychologist"
+                elif "Devil's Advocate" in line:
+                    current_agent = "Contrarian"
+                elif "Strategic Advisor" in line:
+                    current_agent = "Strategist"
+                
+                current_output = []
+            
+            # Collect output lines
+            elif current_agent and line.strip() and not line.startswith("###"):
+                # Filter out system messages
+                if not any(skip in line for skip in ["Task output:", "Final Answer:", "Thought:"]):
+                    current_output.append(line.strip())
+        
+        # Add last agent's output
+        if current_agent and current_output:
+            contributions.append({
+                "agent": current_agent,
+                "output": "\n".join(current_output),
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        return contributions
     
     def analyze_life_decision(self, decision: Dict, user_id: int, db) -> Dict:
         """Analyze a major life decision"""

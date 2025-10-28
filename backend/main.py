@@ -378,7 +378,7 @@ async def chat_with_mentor(
         user_id=user.id,
         agent_name="Multi-Agent Chat",
         advice=deliberation["final_response"],
-        evidence={"user_message": message.message, "deliberation": deliberation["debate"]},
+        evidence={"user_message": message.message, "deliberation": deliberation["debate"], "raw_deliberation": deliberation.get("raw_deliberation", [])},
         interaction_type="chat"
     )
     db.add(advice)
@@ -389,6 +389,7 @@ async def chat_with_mentor(
         "agent_debate": deliberation["debate"],
         "key_insights": deliberation["key_insights"],
         "recommended_actions": deliberation["actions"],
+        "raw_deliberation": deliberation.get("raw_deliberation", []),
         "interaction_id": advice.id
     }
 
