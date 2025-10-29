@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { UserButton } from '@clerk/nextjs'
 import axios from 'axios'
 import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, X, History, Eye, Calendar as CalendarIcon } from 'lucide-react'
 import CheckInModal from './CheckInModal'
@@ -160,6 +161,18 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
                 <CalendarIcon className="w-4 h-4" />
                 <span>Daily Check-in</span>
               </button>
+              
+              {/* Clerk User Button */}
+              <div className="flex items-center space-x-2">
+                <UserButton 
+                  afterSignOutUrl="/"
+                  appearance={{
+                    elements: {
+                      avatarBox: "w-10 h-10 ring-2 ring-blue-500/20"
+                    }
+                  }}
+                />
+              </div>
               
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
