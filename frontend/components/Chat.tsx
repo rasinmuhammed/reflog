@@ -5,6 +5,7 @@ import axios from 'axios'
 import { Send, Brain, BarChart, AlertTriangle, Target, Loader2, MessageCircle, History, Eye, EyeOff, Sparkles, Terminal } from 'lucide-react'
 import MarkdownRenderer from './MarkdownRenderer'
 
+// Assuming API_URL is defined elsewhere or replace with actual URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface AgentContribution {
@@ -19,7 +20,7 @@ interface Message {
   debate?: Array<{
     agent: string
     perspective: string
-    color: string
+    color: string // Keep this for potential future dynamic coloring based on response
   }>
   insights?: string[]
   actions?: Array<{
@@ -51,13 +52,15 @@ export default function Chat({ githubUsername }: ChatProps) {
     scrollToBottom()
   }, [messages])
 
+  // Updated agentColors using the new palette
   const agentColors: Record<string, string> = {
-    'Analyst': 'from-blue-500 to-cyan-500',
-    'Psychologist': 'from-purple-500 to-pink-500',
-    'Contrarian': 'from-red-500 to-orange-500',
-    'Strategist': 'from-green-500 to-emerald-500'
+    'Analyst': 'from-[#933DC9] to-[#53118F]', // Orchid to Violet
+    'Psychologist': 'from-[#53118F] to-[#933DC9]', // Violet to Orchid
+    'Contrarian': 'from-red-500 to-orange-500', // Keep contrast for Contrarian
+    'Strategist': 'from-[#933DC9] to-[#53118F]' // Orchid to Violet
   }
 
+  // Icons remain the same
   const agentIcons: Record<string, JSX.Element> = {
     'Analyst': <BarChart className="w-5 h-5" />,
     'Psychologist': <Brain className="w-5 h-5" />,
@@ -87,7 +90,7 @@ export default function Chat({ githubUsername }: ChatProps) {
       setMessages(prev => [...prev, {
         type: 'assistant',
         content: response.data.response,
-        debate: response.data.agent_debate,
+        debate: response.data.agent_debate, // Make sure backend provides this structure
         insights: response.data.key_insights,
         actions: response.data.recommended_actions,
         raw_deliberation: response.data.raw_deliberation,
@@ -120,22 +123,25 @@ export default function Chat({ githubUsername }: ChatProps) {
   ]
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-3xl shadow-2xl overflow-hidden">
-      {/* Header */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white p-6 shadow-lg">
+    // Main container - Use Raisin Black, Floral White text
+    <div className="flex flex-col h-[calc(100vh-12rem)] bg-[#242424] border border-[#242424]/50 rounded-3xl shadow-2xl overflow-hidden text-[#FBFAEE]">
+      {/* Header - Use Purple gradient */}
+      <div className="bg-gradient-to-r from-[#933DC9] to-[#53118F] text-[#FBFAEE] p-6 shadow-lg">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <div className="bg-white/20 backdrop-blur-sm p-3 rounded-2xl">
+            {/* Icon background slightly transparent white */}
+            <div className="bg-white/10 backdrop-blur-sm p-3 rounded-2xl">
               <MessageCircle className="w-8 h-8" />
             </div>
             <div>
-              <h2 className="text-3xl font-bold">Chat with Sage</h2>
-              <p className="text-blue-100 text-sm">Multi-agent AI deliberation</p>
+              <h2 className="text-3xl font-bold">Chat with Reflog</h2> {/* Updated Name */}
+              <p className="text-[#FBFAEE]/80 text-sm">Multi-agent AI deliberation</p>
             </div>
           </div>
+          {/* Button style */}
           <button
             onClick={() => setShowDebateByDefault(!showDebateByDefault)}
-            className="flex items-center space-x-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-sm font-medium transition backdrop-blur-sm"
+            className="flex items-center space-x-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium transition backdrop-blur-sm"
           >
             {showDebateByDefault ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             <span>{showDebateByDefault ? 'Debates On' : 'Debates Off'}</span>
@@ -143,60 +149,67 @@ export default function Chat({ githubUsername }: ChatProps) {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gradient-to-b from-gray-950 to-gray-900">
+      {/* Messages Area - Use Black background, Floral White text */}
+      <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-[#000000]">
         {messages.length === 0 ? (
+          // Empty state - Use Purple gradient for icon background
           <div className="text-center py-12">
-            <div className="bg-gradient-to-br from-blue-600 to-purple-600 p-4 rounded-3xl shadow-lg w-20 h-20 mx-auto mb-6 flex items-center justify-center">
-              <Brain className="w-12 h-12 text-white" />
+            <div className="bg-gradient-to-br from-[#933DC9] to-[#53118F] p-4 rounded-3xl shadow-lg w-20 h-20 mx-auto mb-6 flex items-center justify-center">
+              <Brain className="w-12 h-12 text-[#FBFAEE]" />
             </div>
-            <h3 className="text-2xl font-bold text-white mb-3">Ask me anything</h3>
-            <p className="text-gray-400 mb-8 max-w-md mx-auto">
+            <h3 className="text-2xl font-bold text-[#FBFAEE] mb-3">Ask me anything</h3>
+            <p className="text-[#FBFAEE]/70 mb-8 max-w-md mx-auto">
               I'll analyze your question with multiple AI agents who will debate to give you the best advice.
             </p>
+            {/* Quick prompt buttons */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-3xl mx-auto">
               {quickPrompts.map((prompt, idx) => (
                 <button
                   key={idx}
                   onClick={() => setInput(prompt)}
-                  className="p-4 text-left bg-gray-800/50 hover:bg-gray-800 border border-gray-700 hover:border-gray-600 rounded-xl text-sm transition text-gray-300 hover:text-white group"
+                  className="p-4 text-left bg-[#242424]/50 hover:bg-[#242424] border border-[#242424]/60 hover:border-[#242424]/80 rounded-xl text-sm transition text-[#FBFAEE]/80 hover:text-[#FBFAEE] group"
                 >
-                  <Sparkles className="w-4 h-4 inline mr-2 text-blue-400 group-hover:text-blue-300" />
+                  <Sparkles className="w-4 h-4 inline mr-2 text-[#933DC9] group-hover:text-[#A35AD4]" /> {/* Orchid color for Sparkles */}
                   {prompt}
                 </button>
               ))}
             </div>
           </div>
         ) : (
+          // Display messages
           messages.map((msg, idx) => (
             <div key={idx}>
               {msg.type === 'user' ? (
+                // User message - Use Purple gradient
                 <div className="flex justify-end">
-                  <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-2xl rounded-tr-none max-w-2xl shadow-lg">
+                  <div className="bg-gradient-to-r from-[#933DC9] to-[#53118F] text-[#FBFAEE] px-6 py-4 rounded-2xl rounded-tr-none max-w-2xl shadow-lg">
                     <p className="whitespace-pre-wrap">{msg.content}</p>
                   </div>
                 </div>
               ) : msg.type === 'assistant' ? (
+                // Assistant message section
                 <div className="space-y-4">
-                  {/* Main Response with Markdown */}
-                  <div className="bg-gray-800/80 backdrop-blur-sm border border-gray-700 px-6 py-5 rounded-2xl rounded-tl-none max-w-3xl shadow-lg">
-                    <MarkdownRenderer 
-                      content={msg.content} 
-                      className="text-gray-200"
+                  {/* Main Response - Raisin background, Floral White text */}
+                  <div className="bg-[#242424]/80 backdrop-blur-sm border border-[#242424]/60 px-6 py-5 rounded-2xl rounded-tl-none max-w-3xl shadow-lg">
+                    <MarkdownRenderer
+                      content={msg.content}
+                      className="text-[#FBFAEE]/90" // Slightly less bright text for readability
                     />
                   </div>
 
                   {/* Raw Deliberation Section */}
                   {msg.raw_deliberation && msg.raw_deliberation.length > 0 && (
                     <div className="ml-8">
+                      {/* Button style */}
                       <button
                         onClick={() => setShowRawDeliberation(showRawDeliberation === idx ? null : idx)}
-                        className="flex items-center space-x-2 text-sm font-semibold text-gray-400 hover:text-gray-300 transition mb-3"
+                        className="flex items-center space-x-2 text-sm font-semibold text-[#FBFAEE]/60 hover:text-[#FBFAEE]/80 transition mb-3"
                       >
                         <Terminal className="w-4 h-4" />
                         <span>
                           {showRawDeliberation === idx ? 'Hide Raw Deliberation' : 'Show Raw Deliberation'}
                         </span>
+                        {/* Green accent kept for status */}
                         <span className="bg-green-500/20 text-green-300 px-2 py-0.5 rounded-full text-xs">
                           Behind the scenes
                         </span>
@@ -205,23 +218,25 @@ export default function Chat({ githubUsername }: ChatProps) {
                       {showRawDeliberation === idx && (
                         <div className="space-y-3 animate-in slide-in-from-top duration-300 mb-4">
                           {msg.raw_deliberation.map((contribution, i) => (
+                            // Raw deliberation item style
                             <div
                               key={i}
-                              className="bg-gray-900/80 border border-gray-700 rounded-xl p-4 overflow-hidden"
+                              className="bg-[#000000]/50 border border-[#242424]/40 rounded-xl p-4 overflow-hidden"
                             >
-                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-gray-700">
+                              <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#242424]/40">
                                 <div className="flex items-center space-x-2">
+                                  {/* Agent color indicator */}
                                   <div className={`bg-gradient-to-r ${agentColors[contribution.agent]} w-3 h-3 rounded-full shadow-lg`}></div>
-                                  <span className="text-gray-300 font-bold text-sm">{contribution.agent}</span>
+                                  <span className="text-[#FBFAEE]/80 font-bold text-sm">{contribution.agent}</span>
                                 </div>
-                                <span className="text-gray-500 text-xs">
-                                  {new Date(contribution.timestamp).toLocaleTimeString()}
+                                <span className="text-[#FBFAEE]/50 text-xs">
+                                  {new Date(contribution.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                                 </span>
                               </div>
                               <div className="text-xs">
-                                <MarkdownRenderer 
-                                  content={contribution.output} 
-                                  className="text-gray-400 font-mono"
+                                <MarkdownRenderer
+                                  content={contribution.output}
+                                  className="text-[#FBFAEE]/70 font-mono" // Mono font for raw output
                                 />
                               </div>
                             </div>
@@ -234,9 +249,10 @@ export default function Chat({ githubUsername }: ChatProps) {
                   {/* Agent Debate Section */}
                   {msg.debate && msg.debate.length > 0 && (
                     <div className="ml-8 space-y-3">
+                      {/* Button style */}
                       <button
                         onClick={() => setExpandedDebateIndex(expandedDebateIndex === idx ? null : idx)}
-                        className="flex items-center space-x-2 text-sm font-semibold text-gray-400 hover:text-gray-300 transition mb-3"
+                        className="flex items-center space-x-2 text-sm font-semibold text-[#FBFAEE]/60 hover:text-[#FBFAEE]/80 transition mb-3"
                       >
                         <History className="w-4 h-4" />
                         <span>
@@ -244,7 +260,8 @@ export default function Chat({ githubUsername }: ChatProps) {
                             ? 'Hide Agent Debate'
                             : 'Show Agent Debate'}
                         </span>
-                        <span className="bg-purple-500/20 text-purple-300 px-2 py-0.5 rounded-full text-xs">
+                        {/* Purple accent for agent count */}
+                        <span className="bg-[#933DC9]/20 text-[#C488F8] px-2 py-0.5 rounded-full text-xs">
                           {msg.debate.length} agents
                         </span>
                       </button>
@@ -252,21 +269,23 @@ export default function Chat({ githubUsername }: ChatProps) {
                       {(showDebateByDefault || expandedDebateIndex === idx) && (
                         <div className="space-y-3 animate-in slide-in-from-top duration-300">
                           {msg.debate.map((agent, i) => (
+                            // Debate item style
                             <div
                               key={i}
-                              className="flex items-start space-x-3 p-4 bg-gray-800/50 border border-gray-700 rounded-xl hover:bg-gray-800/70 transition-all group"
+                              className="flex items-start space-x-3 p-4 bg-[#242424]/40 border border-[#242424]/50 rounded-xl hover:bg-[#242424]/60 transition-all group"
                             >
-                              <div className={`bg-gradient-to-r ${agentColors[agent.agent]} text-white p-3 rounded-xl shadow-lg group-hover:scale-110 transition-transform`}>
+                              {/* Agent icon background */}
+                              <div className={`bg-gradient-to-r ${agentColors[agent.agent]} text-[#FBFAEE] p-3 rounded-xl shadow-lg group-hover:scale-110 transition-transform`}>
                                 {agentIcons[agent.agent]}
                               </div>
                               <div className="flex-1 min-w-0">
                                 <div className="flex items-center justify-between mb-2">
-                                  <div className="font-semibold text-white">{agent.agent}</div>
+                                  <div className="font-semibold text-[#FBFAEE]">{agent.agent}</div>
                                 </div>
                                 <div className="text-sm leading-relaxed">
-                                  <MarkdownRenderer 
-                                    content={agent.perspective} 
-                                    className="text-gray-300"
+                                  <MarkdownRenderer
+                                    content={agent.perspective}
+                                    className="text-[#FBFAEE]/80"
                                   />
                                 </div>
                               </div>
@@ -277,17 +296,17 @@ export default function Chat({ githubUsername }: ChatProps) {
                     </div>
                   )}
 
-                  {/* Key Insights */}
+                  {/* Key Insights - Purple accent */}
                   {msg.insights && msg.insights.length > 0 && (
-                    <div className="ml-8 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl p-4">
-                      <h4 className="font-semibold text-blue-400 mb-3 flex items-center">
+                    <div className="ml-8 bg-gradient-to-r from-[#933DC9]/10 to-[#53118F]/10 border border-[#933DC9]/30 rounded-xl p-4">
+                      <h4 className="font-semibold text-[#C488F8] mb-3 flex items-center"> {/* Lighter purple text */}
                         <Brain className="w-4 h-4 mr-2" />
                         Key Insights:
                       </h4>
                       <ul className="space-y-2">
                         {msg.insights.map((insight, i) => (
-                          <li key={i} className="text-sm text-gray-300 flex items-start">
-                            <span className="text-blue-400 mr-2">•</span>
+                          <li key={i} className="text-sm text-[#FBFAEE]/80 flex items-start">
+                            <span className="text-[#C488F8] mr-2">•</span>
                             <span>{insight}</span>
                           </li>
                         ))}
@@ -295,7 +314,7 @@ export default function Chat({ githubUsername }: ChatProps) {
                     </div>
                   )}
 
-                  {/* Immediate Actions */}
+                  {/* Immediate Actions - Kept Green/Red for clarity */}
                   {msg.actions && msg.actions.length > 0 && (
                     <div className="ml-8 bg-gradient-to-r from-green-500/10 to-teal-500/10 border border-green-500/30 rounded-xl p-4">
                       <h4 className="font-semibold text-green-400 mb-3 flex items-center">
@@ -304,7 +323,7 @@ export default function Chat({ githubUsername }: ChatProps) {
                       </h4>
                       <ul className="space-y-2">
                         {msg.actions.map((action, i) => (
-                          <li key={i} className="text-sm text-gray-300 flex items-start">
+                          <li key={i} className="text-sm text-[#FBFAEE]/80 flex items-start">
                             <span className={`font-bold mr-2 ${action.priority === 'high' ? 'text-red-400' : 'text-green-400'}`}>
                               {i + 1}.
                             </span>
@@ -316,22 +335,24 @@ export default function Chat({ githubUsername }: ChatProps) {
                   )}
                 </div>
               ) : (
-                <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-6 py-3 rounded-lg max-w-md">
-                  {msg.content}
+                 // Error message style - Kept Red
+                <div className="bg-red-900/30 border border-red-500/40 text-red-300 px-6 py-3 rounded-lg max-w-md">
+                  <p>{msg.content}</p>
                 </div>
               )}
             </div>
           ))
         )}
 
+        {/* Loading indicator */}
         {loading && (
           <div className="flex items-start space-x-3">
-            <div className="bg-gray-800 border border-gray-700 px-6 py-4 rounded-2xl rounded-tl-none">
+             <div className="bg-[#242424] border border-[#242424]/60 px-6 py-4 rounded-2xl rounded-tl-none">
               <div className="flex items-center space-x-3">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+                 <Loader2 className="w-5 h-5 animate-spin text-[#933DC9]" /> {/* Orchid spinner */}
                 <div>
-                  <p className="text-gray-300 font-medium">Agents are deliberating...</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                   <p className="text-[#FBFAEE]/90 font-medium">Agents are deliberating...</p>
+                   <p className="text-xs text-[#FBFAEE]/60 mt-1">
                     Analyst, Psychologist, Contrarian, and Strategist are debating your question
                   </p>
                 </div>
@@ -342,27 +363,28 @@ export default function Chat({ githubUsername }: ChatProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <div className="border-t border-gray-700 p-4 bg-gradient-to-t from-gray-900 to-gray-800/50">
+      {/* Input Area - Raisin background, black for input */}
+      <div className="border-t border-[#242424]/50 p-4 bg-[#242424]">
         <div className="flex items-end space-x-3">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Ask Sage anything..."
-            className="flex-1 px-4 py-3 bg-gray-800/70 border border-gray-600 text-gray-200 placeholder-gray-500 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none shadow-inner"
+            placeholder="Ask Reflog anything..." // Updated placeholder
+            className="flex-1 px-4 py-3 bg-[#000000]/70 border border-[#242424]/80 text-[#FBFAEE] placeholder-[#FBFAEE]/50 rounded-xl focus:ring-2 focus:ring-[#933DC9] focus:border-transparent resize-none shadow-inner transition duration-200"
             rows={2}
             disabled={loading}
           />
+          {/* Send button - Purple gradient */}
           <button
             onClick={handleSend}
             disabled={!input.trim() || loading}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white p-4 rounded-xl hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-blue-500/50"
+            className="bg-gradient-to-r from-[#933DC9] to-[#53118F] text-[#FBFAEE] p-4 rounded-xl hover:from-[#A35AD4] hover:to-[#6E2EA4] transition disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-[#933DC9]/50"
           >
             <Send className="w-5 h-5" />
           </button>
         </div>
-        <p className="text-xs text-gray-500 mt-2 text-center">
+        <p className="text-xs text-[#FBFAEE]/50 mt-2 text-center">
           💡 Press Enter to send, Shift+Enter for new line. Powered by multi-agent deliberation.
         </p>
       </div>

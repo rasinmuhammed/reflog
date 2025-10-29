@@ -1,323 +1,149 @@
-# Sage AI Mentor 🧠
+# Reflog 🧠
 
-> **Your brutally honest AI development mentor. No validation, just truth.**
+> **Reflect on Your Code. Get Unstuck.**
+> The AI mentor built out of necessity.
 
-Stop getting generic advice. Start getting called out on your patterns. Sage uses multi-agent AI to analyze your GitHub, track your progress, and hold you accountable.
+We're drowning in AI that tells us "You're right," even when we're demonstrably stuck. I saw a meme that perfectly captured it: *"In this era, anyone dumb is being told 'You are right' by ChatGPT."* That hit home. We ask for advice, hoping for challenge, but often get validation that keeps us spinning our wheels.
+
+My greatest weakness? Never having a real mentor to call out my patterns and push me past my comfort zone. When you lack that guidance, you build it. That's the builder's spirit, and that's why Reflog exists.
+
+Reflog isn't trying to be your friend; it's designed to be the objective, data-driven mirror developers need. It connects to your GitHub, analyzes your *actual* coding habits, helps you define and track concrete goals, and provides brutally honest feedback based on your actions, not just your words.
+
+**This MVP focuses squarely on developer accountability.** It's the first step towards a larger vision: creating a personalized advisory board for anyone seeking clarity and growth. But for now, Reflog delivers what many developers are missing: **unbiased reflection and a push towards consistent shipping.**
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.9+-blue.svg)
 ![Next.js](https://img.shields.io/badge/next.js-14-black.svg)
 
-## 🎯 The Problem
+## 🎯 The Problem: Why We Get Stuck
 
-- **AI chatbots validate you** instead of challenging you
-- **Mentors are expensive** ($100-$500/hr)
-- **You keep making the same mistakes** without realizing it
-- **Tutorial hell** is real and nobody calls it out
+* **ChatGPT & The Validation Trap:** Modern AI often defaults to supportive agreement, failing to challenge flawed assumptions or point out negative patterns. It tells us we're right, even when our results say otherwise.
+* **Lack of Objective Feedback:** Without a mentor, it's hard to get an unbiased view of our habits, blind spots, and recurring mistakes (hello, tutorial hell!).
+* **The Illusion of Progress:** We feel busy – configuring tools, starting new courses, refactoring endlessly – but aren't actually *shipping* consistently.
+* **Inaccessible Mentorship:** Real, experienced mentors are invaluable but often out of reach due to cost or availability.
 
-## ✨ The Solution
+## ✨ The Reflog Solution: Data-Driven Honesty & Accountability
 
-Sage is a multi-agent AI system that:
+Reflog tackles this by focusing on your *actions* recorded in Git:
 
-- ✅ **Analyzes YOUR history** (GitHub repos, commit patterns, behavior)
-- ✅ **Calls out YOUR bullshit** (tutorial hell, procrastination, pattern recognition)
-- ✅ **Holds YOU accountable** (daily check-ins, commitment tracking)
-- ✅ **Gives brutally specific advice** (no vague "improve your skills" nonsense)
+* ✅ **Analyzes Your Git History:** Connects to GitHub to examine commit frequency, repository activity, project lifecycles, and language usage patterns.
+* ✅ **Identifies Real Patterns:** Uses a multi-agent AI system (Analyst, Psychologist, Strategist) to spot concrete behaviors like starting projects but not finishing, inconsistent activity ("yo-yo coding"), or potential "shiny object syndrome."
+* ✅ **Enforces Accountability:** Daily check-ins demand specific, *shippable* commitments. Reflog tracks your follow-through based on your input. No vague goals allowed.
+* ✅ **Delivers Unfiltered Insights:** Provides feedback derived from *your data* and debated by multiple AI perspectives. It's designed to challenge, not just confirm.
 
-## 🏗️ Architecture
+## 🏗️ How Reflog is Built (Current Tech)
 
-### Multi-Agent System (CrewAI)
+### Multi-Agent AI System (CrewAI)
 
-1. **The Analyst** - Examines your GitHub data and extracts behavioral insights
-2. **The Psychologist** - Identifies patterns like imposter syndrome, perfectionism, burnout
-3. **The Strategist** - Creates specific, time-bound action plans with accountability
+1.  **The Analyst:** Extracts objective metrics and facts from GitHub data.
+2.  **The Psychologist:** Identifies potential behavioral patterns (procrastination, perfectionism) based on the data.
+3.  **The Strategist:** Creates specific, actionable feedback and suggestions based on the analysis.
 
-### Tech Stack
+### Technology Stack
 
-- **Backend**: FastAPI + CrewAI + Groq (Llama 3) + SQLite
-- **Frontend**: Next.js 14 + TypeScript + Tailwind CSS
-- **AI**: Multi-agent deliberation with Groq's fast inference
-- **Storage**: SQLite (local), easily portable to PostgreSQL
+* **Backend:** FastAPI | CrewAI | Groq (Llama 3 Inference) | SQLAlchemy (SQLite/PostgreSQL)
+* **Frontend:** Next.js 14 | TypeScript | Tailwind CSS (Reflog Palette: `#000000`, `#242424`, `#FBFAEE`, `#933DC9`, `#53118F`)
+* **AI:** Fast multi-agent deliberation via Groq API.
+* **Data:** Local-first storage (SQLite), portable.
 
-## 🚀 Quick Start
+## 📖 How Reflog Works *Right Now*
 
-### Prerequisites
+1.  **Connect GitHub:** Securely link your account. Reflog performs an initial analysis based on your public/private (if token allows) repo metadata and activity.
+2.  **Get Your Baseline:** Receive the first AI-driven assessment of your development patterns, highlighting potential strengths and blind spots.
+3.  **Daily Check-in:**
+    * **Morning:** Log energy, state what you're avoiding, and define *one concrete thing you will ship today*.
+    * **Evening (Optional):** Record whether you shipped the commitment. If not, state the reason (Reflog tracks excuse patterns).
+4.  **Review Insights & Chat:** Get AI analysis on your check-ins and progress. Use the chat feature to ask specific questions and receive deliberated answers based on your context.
+5.  **Log Decisions:** Use the dedicated log to track significant career or project choices and get AI analysis on them.
+6.  **Monitor Your Dashboard:** Visualize your consistency, success rate, detected patterns, and recent AI feedback.
 
-- Python 3.9+
-- Node.js 18+
-- Groq API key (free at [console.groq.com](https://console.groq.com))
-- GitHub Personal Access Token
+## 📊 Current Features (MVP Focused on Developer Accountability)
 
-### Installation
+* [x] GitHub profile analysis (metadata, activity patterns).
+* [x] Multi-agent AI deliberation for feedback generation.
+* [x] Daily check-in system for setting shippable goals.
+* [x] Commitment tracking & success rate visualization.
+* [x] Detection of patterns (e.g., tutorial hell, inconsistency).
+* [x] Brutally honest, data-grounded feedback.
+* [x] Interactive dashboard with key metrics.
+* [x] AI Chat interface for contextual Q&A.
+* [x] Life Decision Log with AI analysis.
 
-```bash
-# Clone the repo
-git clone https://github.com/yourusername/sage-ai-mentor.git
-cd sage-ai-mentor
+## 🌱 Future Vision: Towards a Personal Advisory Board
 
-# Backend setup
-cd backend
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+While the MVP delivers tangible value for developer accountability *today*, the long-term vision is much broader:
 
-# Create .env file
-cp .env.example .env
-# Edit .env and add your GROQ_API_KEY and GITHUB_TOKEN
+Reflog aims to evolve into an integrated AI mentor – your personal advisory board. Imagine it connecting seamlessly with your Notion, calendar, project management tools, and more, providing holistic, context-aware guidance across different facets of your professional life. Today's focus on coding habits is the essential first step on that journey.
 
-# Frontend setup
-cd ../frontend
-npm install
+## 📚 API Overview (Current)
 
-# Run backend (Terminal 1)
-cd backend
-source venv/bin/activate
-python main.py
+*(This section details the existing API for technical users)*
 
-# Run frontend (Terminal 2)
-cd frontend
-npm run dev
-```
-
-Visit `http://localhost:3000` and enter your GitHub username!
-
-### Using Docker (Alternative)
-
-```bash
-# Set environment variables
-cp backend/.env.example backend/.env
-# Edit backend/.env with your API keys
-
-# Run with Docker Compose
-docker-compose up
-```
-
-## 📖 How It Works
-
-### 1. **Onboarding**
-- Enter your GitHub username
-- AI agents analyze your repos, commit patterns, and activity
-- Get your first brutally honest assessment
-
-### 2. **Daily Check-ins**
-- Morning: Log energy level, what you're avoiding, what you'll ship
-- Evening: Did you ship it? No excuses accepted
-- AI calls out patterns and holds you accountable
-
-### 3. **Agent Deliberation**
-- Agents discuss your situation (visible to you)
-- Analyst presents data, Psychologist interprets patterns
-- Strategist creates specific action plan
-- No vague advice - everything is measurable and time-bound
-
-### 4. **Pattern Recognition**
-- **Tutorial Hell**: Starting projects but not finishing
-- **Shiny Object Syndrome**: Too many languages/frameworks
-- **Perfectionism**: Refactoring instead of shipping
-- **Avoidance**: What you keep procrastinating on
-
-## 📊 Features
-
-### Current (MVP)
-
-- [x] GitHub profile analysis
-- [x] Multi-agent AI deliberation
-- [x] Daily check-in system
-- [x] Pattern detection (tutorial hell, consistency issues)
-- [x] Brutally honest feedback
-- [x] Dashboard with metrics
-
-### Coming Soon
-
-- [ ] Weekly accountability reports
-- [ ] Evening check-in reminders
-- [ ] Wakatime integration (actual coding time)
-- [ ] Mobile app (React Native)
-- [ ] Community patterns (anonymous benchmarking)
-- [ ] Voice check-ins for busy developers
-
-
-## 📚 API Documentation
+The backend provides a FastAPI interface.
 
 ### Base URL
-```
-http://localhost:8000
-```
+`http://localhost:8000` (when running locally)
 
-### Key Endpoints
+### Core Endpoints
+* `POST /users`
+* `POST /analyze-github/{github_username}`
+* `POST /checkins/{github_username}`
+* `POST /commitments/{checkin_id}/review`
+* `GET /dashboard/{github_username}`
+* `POST /chat/{github_username}`
+* `POST /life-decisions/{github_username}`
+* `GET /life-decisions/{github_username}`
 
-#### Create User
-```http
-POST /users
-Content-Type: application/json
-
-{
-  "github_username": "octocat",
-  "email": "octocat@github.com"
-}
-```
-
-#### Analyze GitHub
-```http
-POST /analyze-github/{github_username}
-```
-Returns complete GitHub analysis + AI agent insights
-
-#### Daily Check-in
-```http
-POST /checkins/{github_username}
-Content-Type: application/json
-
-{
-  "energy_level": 7,
-  "avoiding_what": "Writing tests for my API",
-  "commitment": "Deploy authentication feature by 5pm",
-  "mood": "Focused"
-}
-```
-
-#### Get Dashboard
-```http
-GET /dashboard/{github_username}
-```
-Returns complete dashboard data (GitHub stats, check-ins, AI advice)
-
-#### Evening Check-in
-```http
-PATCH /checkins/{checkin_id}/evening
-Content-Type: application/json
-
-{
-  "shipped": false,
-  "excuse": "Got distracted refactoring"
-}
-```
-
-Full API docs at `http://localhost:8000/docs` (FastAPI auto-generated)
+*Full interactive docs available via `/docs` endpoint when running.*
 
 ## 🔒 Privacy & Data
 
-- **Your data stays local** (SQLite database)
-- **No data is sold** or shared with third parties
-- **GitHub data** is analyzed but not stored permanently (only insights)
-- **Open source** - audit the code yourself
-- **Self-hostable** - run it on your own machine
-
-## 🎯 Roadmap
-
-### Phase 1: MVP (Current)
-- [x] Core agent system
-- [x] GitHub integration
-- [x] Daily check-ins
-- [x] Basic dashboard
-
-### Phase 2: Enhanced Accountability (Next 2 months)
-- [ ] All 7 agents (add Contrarian, Historian, Oracle, Accountability Partner)
-- [ ] Agent debate visualization
-- [ ] "Advice Graveyard" (track ignored advice)
-- [ ] Weekly review emails
-- [ ] Wakatime integration
-
-
+* **Local Data:** Your check-ins and analysis insights are stored locally (SQLite default).
+* **No Data Selling:** Your personal data is not for sale. Period.
+* **GitHub Scan:** Analysis focuses on metadata and activity patterns. Code content is not stored.
+* **Open Source:** Verify the code yourself.
+* **Self-Hostable:** Run it entirely under your control.
 
 ## 🤔 FAQ
 
-### Why not just use ChatGPT?
+* **How is this better than asking ChatGPT for advice?**
+    Reflog uses *your actual GitHub data and check-in history* as context. ChatGPT often validates based only on what you tell it, lacking the objective grounding in your real-world actions. Reflog is designed to challenge your assumptions with data.
+* **Is my GitHub data safe?**
+    Yes. Analysis uses the official GitHub API for metadata and activity. Code isn't stored. Insights derived are stored locally (or where you host it).
+* **Why Groq for AI?**
+    Speed. Fast inference allows the multi-agent deliberation to be near real-time.
+* **Will this *really* make me ship more?**
+    It provides the structure, reflection, and accountability often missing. If you engage honestly with the check-ins and feedback, it highlights the friction points and patterns preventing you from shipping. It's a tool to empower *you* to change.
 
-ChatGPT validates you instead of challenging you. It doesn't know YOUR history, YOUR patterns, YOUR repeated mistakes. Sage tracks everything and calls you out.
+## 📣 Feedback & Contribution
 
-### Is my GitHub data safe?
+This is actively developed based on a real need. Your feedback is crucial.
 
-Yes. Your data is stored locally in SQLite. Only aggregated, anonymous patterns may be used to improve the AI (and you can opt out).
+* **Issues & Ideas:** [github.com/rasinmuhammed/reflog-ai-mentor/issues](https://github.com/rasinmuhammed/reflog-ai-mentor/issues)
+* **Discussions:** [github.com/rasinmuhammed/reflog-ai-mentor/discussions](https://github.com/rasinmuhammed/reflog-ai-mentor/discussions)
+* **Contact:** rasinbinabdulla@gmail.com | [@rasinmuhammedx on X/Twitter](https://twitter.com/rasinmuhammedx)
 
-### Why Groq instead of OpenAI?
-
-Groq is **crazy fast** (800+ tokens/sec) and has a generous free tier. Perfect for real-time agent deliberation. You can swap to OpenAI/Claude if you prefer.
-
-### Can I use this without GitHub?
-
-Currently, GitHub integration is core to the product. Manual data entry is planned for future releases.
-
-### Will this actually help me?
-
-If you're honest with it, yes. This isn't magic - it's pattern recognition + accountability. The AI can only work with what you give it.
-
-### Can I customize the agents?
-
-Absolutely! The agent definitions are in `backend/agents.py`. Modify the backstory, goals, or add new agents entirely.
-
-## 🛠️ Development
-
-### Project Structure
-```
-sage-ai-mentor/
-├── backend/
-│   ├── main.py              # FastAPI app
-│   ├── agents.py            # CrewAI agent definitions
-│   ├── crew.py              # Agent orchestration
-│   ├── models.py            # Database models
-│   ├── database.py          # SQLite setup
-│   ├── github_integration.py # GitHub API
-│   └── requirements.txt
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx         # Main page
-│   │   ├── layout.tsx       # App layout
-│   │   └── globals.css      # Global styles
-│   ├── components/
-│   │   ├── Dashboard.tsx    # Main dashboard
-│   │   ├── CheckInModal.tsx # Check-in form
-│   │   ├── AgentInsights.tsx # AI insights display
-│   │   └── Onboarding.tsx   # Onboarding flow
-│   └── package.json
-├── docker-compose.yml
-└── README.md
-```
-
-### Running Tests
-```bash
-# Backend tests (coming soon)
-cd backend
-pytest
-
-# Frontend tests (coming soon)
-cd frontend
-npm test
-```
-
-### Code Style
-- **Python**: PEP 8, use `black` formatter
-- **TypeScript**: ESLint + Prettier
-- **Commits**: Conventional commits (feat:, fix:, docs:, etc.)
-
-
-## 📣 Feedback & Support
-
-- **Issues**: [GitHub Issues](https://github.com/rasinmuhammed/sage-ai-mentor/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/rasinmuhammed/sage-ai-mentor/discussions)
-- **Twitter**: [@yourusername](https://twitter.com/rasinmuhammedx)
-- **Email**: rasinbinabdulla@gmail.com
 ## 📜 License
 
-MIT License - see [LICENSE](LICENSE) for details
+MIT License - see [LICENSE.md](LICENSE.md).
 
 ## 🙏 Acknowledgments
 
-- **CrewAI** for the amazing multi-agent framework
-- **Groq** for blazing-fast LLM inference
-- **GitHub** for the API
-- **All contributors** who make this better
+* **CrewAI, Groq, FastAPI, Next.js:** The tech enabling this.
+* **GitHub API:** The source of truth.
 
-## 🚨 Warning
+## 🚨 Expect Honesty
 
-This AI is brutally honest. If you're looking for validation and feel-good messages, this isn't for you. Sage tells you what you need to hear, not what you want to hear.
+Reflog prioritizes objective, data-driven feedback over feel-good validation. It's built to challenge and provoke reflection. Be prepared for insights that might be uncomfortable but ultimately constructive.
 
 ---
 
-⭐ **Star this repo if you've ever:**
-- Started 10 projects and finished 0
-- Spent more time on tooling than building
-- Asked "should I learn X?" instead of just learning it
-- Needed someone to call out your BS
+⭐ **Star this repo if you:**
 
-Let's build something real together. 🚀
+* Are tired of AI simply agreeing with you.
+* Suspect you're stuck in patterns but can't quite pinpoint them.
+* Believe that real growth comes from confronting reality.
+* Want a tool that pushes you to *ship*, not just *work*.
+* Needed a mentor, so you appreciate someone building one.
+
+Let's use data to build better habits. 🚀
