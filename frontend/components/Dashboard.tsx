@@ -9,6 +9,9 @@ import AgentInsights from './AgentInsights'
 import Chat from './Chat'
 import LifeDecisions from './LifeDecisions'
 import InteractionHistory from './InteractionHistory'
+import MarkdownRenderer from './MarkdownRenderer'
+import CommitmentTracker from './CommitmentTracker'
+import NotificationBanner from './NotificationBanner'
 
 const API_URL = 'http://localhost:8000'
 
@@ -55,6 +58,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
   const [refreshKey, setRefreshKey] = useState(0)
   const [activeTab, setActiveTab] = useState<TabType>('overview')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [showCommitmentReview, setShowCommitmentReview] = useState(false)
 
   useEffect(() => {
     loadDashboard()
@@ -116,6 +120,14 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950">
+        {/* Notification Banner */}
+        <NotificationBanner 
+        githubUsername={githubUsername}
+        onReviewClick={() => {
+            setActiveTab('overview')
+            setShowCommitmentReview(true)
+        }}
+        />
       {/* Modern Header */}
       <header className="bg-gray-900/80 border-b border-gray-800/50 sticky top-0 z-40 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -388,7 +400,12 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
                               <span className="font-semibold text-white text-sm">{item.agent}</span>
                               <span className="text-xs text-gray-500">{item.date}</span>
                             </div>
-                            <p className="text-sm text-gray-400 line-clamp-2">{item.advice}</p>
+                            <p className="text-sm text-gray-400 line-clamp-2">
+                                <MarkdownRenderer 
+                                content={item.advice} 
+                                className="text-gray-200"
+                            />
+                            </p>
                             <div className="mt-2">
                               <span className="text-xs text-gray-600 capitalize">{item.type}</span>
                             </div>

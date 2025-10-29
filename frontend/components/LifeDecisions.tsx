@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react'
 import axios from 'axios'
-import { Plus, BookOpen, TrendingUp, AlertCircle, CheckCircle, Lightbulb, Calendar, X, Loader2, Clock, Filter } from 'lucide-react'
+import { Plus, BookOpen, TrendingUp, AlertCircle, CheckCircle, Lightbulb, Calendar, X, Loader2, Clock, Filter, Brain } from 'lucide-react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 const API_URL = 'http://localhost:8000'
 
@@ -37,6 +38,8 @@ export default function LifeDecisions({ githubUsername }: LifeDecisionsProps) {
   const [timeHorizon, setTimeHorizon] = useState('medium_term')
   const [impactAreas, setImpactAreas] = useState<string[]>([])
   const [submitting, setSubmitting] = useState(false)
+  const [reanalyzing, setReanalyzing] = useState(false)
+  const [reanalyzeError, setReanalyzeError] = useState('')
 
   useEffect(() => {
     loadDecisions()
@@ -54,6 +57,41 @@ export default function LifeDecisions({ githubUsername }: LifeDecisionsProps) {
     } catch (error) {
       console.error('Failed to load decisions:', error)
       setLoading(false)
+    }
+  }
+
+  const handleReanalyze = async (decisionId: number) => {
+    setReanalyzing(true)
+    setReanalyzeError('')
+    
+    try {
+        const response = await axios.post(
+        `${API_URL}/life-decisions/${githubUsername}/${decisionId}/reanalyze`
+        )
+        
+        // Update the selected decision with new analysis
+        if (selectedDecision && selectedDecision.id === decisionId) {
+        setSelectedDecision({
+            ...selectedDecision,
+            ai_analysis: response.data.ai_analysis,
+            lessons_learned: response.data.lessons_learned
+        })
+        }
+        
+        // Reload all decisions to update the list
+        await loadDecisions()
+        
+        setReanalyzing(false)
+        
+        // Show success message
+        alert('✅ Analysis complete! The decision has been re-analyzed.')
+    } catch (error) {
+        console.error('Failed to reanalyze:', error)
+        setReanalyzeError('Failed to reanalyze decision.')
+        // Optionally, show an error message to the user
+        alert('❌ Failed to re-analyze the decision.')
+    } finally {
+        setReanalyzing(false)
     }
   }
 
@@ -480,7 +518,12 @@ export default function LifeDecisions({ githubUsername }: LifeDecisionsProps) {
 
               <div className="bg-gray-800/50 rounded-2xl p-6 border border-gray-700">
                 <h3 className="text-sm font-medium text-gray-400 mb-3">Description</h3>
-                <p className="text-gray-200 leading-relaxed">{selectedDecision.description}</p>
+                <p className="text-gray-200 leading-relaxed">
+                    <MarkdownRenderer 
+                        content={selectedDecision.description} 
+                        className="text-gray-200"
+                        />
+                    </p>
               </div>
 
               <div>
@@ -497,34 +540,59 @@ export default function LifeDecisions({ githubUsername }: LifeDecisionsProps) {
                 </div>
               </div>
 
-              {selectedDecision.ai_analysis && (
+              {selectedDecision.ai_analysis && selectedDecision.ai_analysis.length > 0 ? (
                 <div className="bg-gradient-to-br from-purple-500/10 to-blue-500/10 border border-purple-500/30 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold text-purple-400 mb-4 flex items-center">
+                    <h3 className="text-lg font-semibold text-purple-400 mb-4 flex items-center">
                     <Lightbulb className="w-5 h-5 mr-2" />
                     AI Analysis
-                  </h3>
-                  <p className="text-gray-200 leading-relaxed whitespace-pre-wrap">
-                    {selectedDecision.ai_analysis}
-                  </p>
+                    </h3>
+                    <MarkdownRenderer 
+                    content={selectedDecision.ai_analysis} 
+                    className="text-gray-200"
+                    />
                 </div>
-              )}
+                ) : (
+                <div className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-6">
+                    <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center">
+                    <AlertCircle className="w-5 h-5 mr-2" />
+                    No AI Analysis Available
+                    </h3>
+                    <p className="text-gray-400 text-sm">
+                    This decision was created before AI analysis was implemented, or the analysis failed to save.
+                    You can re-analyze it using the button below.
+                    </p>
+                    <button
+                    onClick={() => handleReanalyze(selectedDecision.id)}
+                    className="mt-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-purple-700 transition"
+                    >
+                    Analyze Now
+                    </button>
+                </div>
+                )}
 
-              {selectedDecision.lessons_learned && selectedDecision.lessons_learned.length > 0 && (
+              {selectedDecision.lessons_learned && selectedDecision.lessons_learned.length > 0 ? (
                 <div className="bg-gradient-to-br from-yellow-500/10 to-orange-500/10 border border-yellow-500/30 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center">
+                    <h3 className="text-lg font-semibold text-yellow-400 mb-4 flex items-center">
                     <CheckCircle className="w-5 h-5 mr-2" />
                     Key Lessons Learned
-                  </h3>
-                  <ul className="space-y-3">
+                    </h3>
+                    <ul className="space-y-3">
                     {selectedDecision.lessons_learned.map((lesson, idx) => (
-                      <li key={idx} className="text-gray-200 flex items-start bg-gray-800/50 rounded-xl p-4">
-                        <span className="text-yellow-400 mr-3 text-xl font-bold">{idx + 1}.</span>
-                        <span className="flex-1">{lesson}</span>
-                      </li>
+                        <li key={idx} className="flex items-start bg-gray-800/50 rounded-xl p-4">
+                        <span className="text-yellow-400 mr-3 text-xl font-bold flex-shrink-0">{idx + 1}.</span>
+                        <MarkdownRenderer 
+                            content={lesson} 
+                            className="flex-1 text-gray-200"
+                        />
+                        </li>
                     ))}
-                  </ul>
+                    </ul>
                 </div>
-              )}
+                ) : (
+                <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-4">
+                    <p className="text-gray-500 text-sm">No lessons extracted yet.</p>
+                </div>
+                )}
             </div>
           </div>
         </div>

@@ -3,8 +3,9 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { X, Loader2, Calendar, TrendingUp, Brain, CheckCircle, XCircle } from 'lucide-react'
+import MarkdownRenderer from './MarkdownRenderer' 
 
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface CheckInModalProps {
   githubUsername: string
@@ -307,32 +308,36 @@ export default function CheckInModal({ githubUsername, onClose, onComplete }: Ch
             </form>
           ) : (
             <div className="space-y-6">
-              {/* AI Response */}
-              <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/40 rounded-2xl p-6 shadow-lg">
+                {/* AI Response */}
+                <div className="bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/40 rounded-2xl p-6 shadow-lg">
                 <div className="flex items-center mb-4">
-                  <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-3 rounded-xl mr-3">
+                    <div className="bg-gradient-to-r from-purple-600 to-pink-600 p-3 rounded-xl mr-3">
                     <Brain className="w-6 h-6 text-white" />
-                  </div>
-                  <h3 className="font-bold text-xl text-white">AI Analysis</h3>
+                    </div>
+                    <h3 className="font-bold text-xl text-white">AI Analysis</h3>
                 </div>
-                <p className="text-gray-200 whitespace-pre-wrap leading-relaxed">
-                  {aiResponse}
-                </p>
-              </div>
+                <MarkdownRenderer 
+                    content={aiResponse} 
+                    className="text-gray-200"
+                />
+                </div>
 
               {/* Commitment Summary */}
               <div className="bg-gray-800/50 border border-gray-700 rounded-2xl p-6">
                 <h4 className="font-semibold text-white mb-4 flex items-center">
-                  <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
-                  Your Commitment Today
+                    <TrendingUp className="w-5 h-5 mr-2 text-green-400" />
+                    Your Commitment Today
                 </h4>
                 <div className="bg-gradient-to-r from-green-500/10 to-emerald-500/10 border border-green-500/30 rounded-xl p-4 mb-4">
-                  <p className="text-gray-200 italic">"{commitment}"</p>
+                    <MarkdownRenderer 
+                    content={`"${commitment}"`} 
+                    className="text-gray-200 italic"
+                    />
                 </div>
                 <p className="text-sm text-gray-400">
-                  We'll check in tonight to see if you shipped it. No excuses accepted.
+                    We'll check in tonight to see if you shipped it. No excuses accepted.
                 </p>
-              </div>
+                </div>
 
               {/* Action Buttons */}
               <div className="flex space-x-3">

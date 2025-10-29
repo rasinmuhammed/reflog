@@ -1,6 +1,7 @@
 'use client'
 
 import { Brain, BarChart, Lightbulb } from 'lucide-react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 interface Advice {
   agent: string
@@ -41,8 +42,8 @@ export default function AgentInsights({ advice }: AgentInsightsProps) {
 
   if (advice.length === 0) {
     return (
-      <div className="bg-white rounded-xl shadow-lg p-6">
-        <h2 className="text-xl font-bold mb-4">Agent Insights</h2>
+      <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6">
+        <h2 className="text-xl font-bold text-white mb-4">Agent Insights</h2>
         <p className="text-gray-500 text-center py-8">
           No insights yet. Complete your first check-in or run a GitHub analysis.
         </p>
@@ -51,37 +52,38 @@ export default function AgentInsights({ advice }: AgentInsightsProps) {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      <h2 className="text-xl font-bold mb-4">Recent Agent Insights</h2>
+    <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6">
+      <h2 className="text-xl font-bold text-white mb-4">Recent Agent Insights</h2>
       
       <div className="space-y-4">
         {advice.map((item, idx) => (
           <div
             key={idx}
-            className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition"
+            className="bg-gray-800/50 border border-gray-700 rounded-xl p-4 hover:bg-gray-800 hover:border-gray-600 transition"
           >
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center">
-                <div className={`bg-gradient-to-r ${getAgentColor(item.agent)} text-white p-2 rounded-lg mr-3`}>
+                <div className={`bg-gradient-to-r ${getAgentColor(item.agent)} text-white p-2 rounded-lg mr-3 shadow-lg`}>
                   {getAgentIcon(item.agent)}
                 </div>
                 <div>
-                  <h3 className="font-semibold">{item.agent}</h3>
+                  <h3 className="font-semibold text-white">{item.agent}</h3>
                   <p className="text-xs text-gray-500">{item.date}</p>
                 </div>
               </div>
             </div>
             
-            <p className="text-gray-700 text-sm leading-relaxed">
-              {item.advice}
-            </p>
+            <MarkdownRenderer 
+              content={item.advice} 
+              className="text-gray-300"
+            />
           </div>
         ))}
       </div>
 
-      <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border border-blue-200">
-        <p className="text-sm text-gray-700">
-          💡 <strong>Tip:</strong> These insights are based on your actual behavior patterns, 
+      <div className="mt-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
+        <p className="text-sm text-gray-300">
+          💡 <strong className="text-white">Tip:</strong> These insights are based on your actual behavior patterns, 
           not generic advice. Review them regularly to track your growth.
         </p>
       </div>

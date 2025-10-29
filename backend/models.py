@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime, Float, Boolean, Text, JSON
+from sqlalchemy import Column, Integer, String, DateTime, Float, Boolean, Text
+from sqlalchemy.dialects.postgresql import JSON
 from datetime import datetime
 from database import Base
 from pydantic import BaseModel
@@ -9,8 +10,8 @@ class User(Base):
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
-    github_username = Column(String, unique=True, index=True)
-    email = Column(String, unique=True, index=True, nullable=True)
+    github_username = Column(String(255), unique=True, index=True)
+    email = Column(String(255), unique=True, index=True, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
     onboarding_complete = Column(Boolean, default=False)
 
@@ -25,21 +26,21 @@ class CheckIn(Base):
     commitment = Column(Text)
     shipped = Column(Boolean, nullable=True)
     excuse = Column(Text, nullable=True)
-    mood = Column(String, nullable=True)
-    ai_analysis = Column(Text, nullable=True)  # Store AI response
-    agent_debate = Column(JSON, nullable=True)  # Store full debate
+    mood = Column(String(100), nullable=True)
+    ai_analysis = Column(Text, nullable=True)
+    agent_debate = Column(JSON, nullable=True)  # PostgreSQL JSON type
 
 class GitHubAnalysis(Base):
     __tablename__ = "github_analysis"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    username = Column(String)
+    username = Column(String(255))
     total_repos = Column(Integer)
     active_repos = Column(Integer)
     total_commits = Column(Integer)
-    languages = Column(JSON)
-    patterns = Column(JSON)
+    languages = Column(JSON)  # PostgreSQL JSON type
+    patterns = Column(JSON)  # PostgreSQL JSON type
     analyzed_at = Column(DateTime, default=datetime.utcnow)
 
 class AgentAdvice(Base):
@@ -47,27 +48,27 @@ class AgentAdvice(Base):
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    agent_name = Column(String)
+    agent_name = Column(String(100))
     advice = Column(Text)
-    evidence = Column(JSON)
+    evidence = Column(JSON)  # PostgreSQL JSON type
     created_at = Column(DateTime, default=datetime.utcnow)
     followed = Column(Boolean, nullable=True)
     outcome = Column(Text, nullable=True)
-    interaction_type = Column(String, default="analysis")  # analysis, chat, checkin
+    interaction_type = Column(String(50), default="analysis")
 
 class LifeEvent(Base):
     __tablename__ = "life_events"
     
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, index=True)
-    event_type = Column(String)
+    event_type = Column(String(100))
     description = Column(Text)
-    context = Column(JSON, nullable=True)
+    context = Column(JSON, nullable=True, default=dict)
     timestamp = Column(DateTime, default=datetime.utcnow)
-    time_horizon = Column(String, nullable=True)  # short_term, medium_term, long_term
+    time_horizon = Column(String(50), nullable=True)
     outcome = Column(Text, nullable=True)
 
-# Pydantic Schemas
+# Pydantic Schemas (unchanged)
 class UserCreate(BaseModel):
     github_username: str
     email: Optional[str] = None
@@ -138,7 +139,7 @@ class LifeDecisionCreate(BaseModel):
     description: str
     decision_type: str
     impact_areas: List[str]
-    time_horizon: Optional[str] = "medium_term"  # short_term, medium_term, long_term
+    time_horizon: Optional[str] = "medium_term"
     context: Optional[Dict] = None
 
 class LifeDecisionResponse(BaseModel):

@@ -5,7 +5,7 @@ import axios from 'axios'
 import { Send, Brain, BarChart, AlertTriangle, Target, Loader2, MessageCircle, History, Eye, EyeOff, Sparkles, Terminal } from 'lucide-react'
 import MarkdownRenderer from './MarkdownRenderer'
 
-const API_URL = 'http://localhost:8000'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
 interface AgentContribution {
   agent: string

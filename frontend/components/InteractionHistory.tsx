@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import axios from 'axios'
 import { History, MessageCircle, Calendar, Brain, Filter, X, ChevronDown, ChevronUp } from 'lucide-react'
+import MarkdownRenderer from './MarkdownRenderer'
 
 const API_URL = 'http://localhost:8000'
 
@@ -176,7 +177,10 @@ export default function InteractionHistory({ githubUsername }: InteractionHistor
                           </span>
                         </div>
                         <p className={`text-gray-300 leading-relaxed ${isExpanded ? '' : 'line-clamp-3'}`}>
-                          {interaction.advice}
+                          <MarkdownRenderer 
+                            content={interaction.advice} 
+                            className="text-gray-300"
+                            />
                         </p>
                       </div>
                     </div>

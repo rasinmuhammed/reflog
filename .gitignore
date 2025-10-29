@@ -30,6 +30,8 @@ frontend/dist/
 frontend/.DS_Store
 frontend/*.tsbuildinfo
 frontend/next-env.d.ts
+frontend/.env.local
+frontend/.clerk
 
 # Logs
 *.log
