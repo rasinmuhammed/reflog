@@ -299,7 +299,8 @@ export default function InteractionHistory({ githubUsername }: InteractionHistor
 
               <div className="mt-6 p-4 bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/30 rounded-xl">
                 <h4 className="text-sm font-semibold text-blue-400 mb-2">Final Response</h4>
-                <p className="text-gray-300 leading-relaxed whitespace-pre-wrap">{selectedInteraction.advice}</p>
+                <MarkdownRenderer content={selectedInteraction.advice} />
+                
               </div>
             </div>
           </div>

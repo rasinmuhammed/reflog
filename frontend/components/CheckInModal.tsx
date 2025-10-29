@@ -40,6 +40,14 @@ export default function CheckInModal({ githubUsername, onClose, onComplete }: Ch
     loadRecentCheckins()
   }, [githubUsername])
 
+  const commitmentTemplates = [
+    "Complete [feature] by [time]",
+    "Ship [project milestone] today",
+    "Write [number] lines of production code",
+    "Deploy [specific component] to production",
+    "Finish [specific task] without refactoring"
+    ]
+
   const loadRecentCheckins = async () => {
     try {
       const response = await axios.get(`${API_URL}/checkins/${githubUsername}?limit=7`)
@@ -237,6 +245,20 @@ export default function CheckInModal({ githubUsername, onClose, onComplete }: Ch
                 <label className="block text-sm font-medium text-gray-300 mb-2">
                   What will you ship today? <span className="text-red-400">*</span>
                 </label>
+
+                {/* Template Pills */}
+                <div className="flex flex-wrap gap-2 mb-3">
+                    {commitmentTemplates.map((template, idx) => (
+                    <button
+                        key={idx}
+                        type="button"
+                        onClick={() => setCommitment(template)}
+                        className="px-3 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 text-xs rounded-lg transition"
+                    >
+                        {template.length > 30 ? template.substring(0, 30) + '...' : template}
+                    </button>
+                    ))}
+                </div>
                 <textarea
                   value={commitment}
                   onChange={(e) => setCommitment(e.target.value)}

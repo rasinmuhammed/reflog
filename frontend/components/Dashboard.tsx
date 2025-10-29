@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { UserButton } from '@clerk/nextjs'
 import axios from 'axios'
-import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, X, History, Eye, Calendar as CalendarIcon } from 'lucide-react'
+import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, X, History, Eye, Calendar as CalendarIcon, ArrowRight } from 'lucide-react'
 import CheckInModal from './CheckInModal'
 import AgentInsights from './AgentInsights'
 import Chat from './Chat'
@@ -12,6 +12,7 @@ import InteractionHistory from './InteractionHistory'
 import MarkdownRenderer from './MarkdownRenderer'
 import CommitmentTracker from './CommitmentTracker'
 import NotificationBanner from './NotificationBanner'
+import CommitmentCalendar from './CommitmentCalendar'
 
 const API_URL = 'http://localhost:8000'
 
@@ -49,7 +50,7 @@ interface DashboardData {
   }>
 }
 
-type TabType = 'overview' | 'chat' | 'decisions' | 'history'
+type TabType = 'overview' | 'chat' | 'commitments' | 'decisions' | 'history'
 
 export default function Dashboard({ githubUsername }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -114,6 +115,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
   const tabs = [
     { id: 'overview' as TabType, label: 'Overview', icon: Target, color: 'blue' },
     { id: 'chat' as TabType, label: 'Chat', icon: MessageCircle, color: 'purple' },
+    { id: 'commitments' as TabType, label: 'Commitments', icon: CalendarIcon, color: 'orange' }, 
     { id: 'decisions' as TabType, label: 'Decisions', icon: BookOpen, color: 'green' },
     { id: 'history' as TabType, label: 'History', icon: History, color: 'orange' }
   ]
@@ -346,7 +348,31 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
                   </div>
                 </div>
               </div>
+
+             {/* Today's Commitment Widget */}
+                <div className="bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6">
+                <div className="flex items-center mb-4">
+                    <div className="bg-gradient-to-br from-orange-600 to-red-600 p-3 rounded-xl mr-3">
+                    <CalendarIcon className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                    <h2 className="text-xl font-bold text-white">Today</h2>
+                    <p className="text-xs text-gray-500">Your daily commitment</p>
+                    </div>
+                </div>
+                
+                <button
+                    onClick={() => setActiveTab('commitments')}
+                    className="w-full bg-gradient-to-r from-orange-600 to-red-600 text-white px-4 py-3 rounded-xl font-semibold hover:from-orange-700 hover:to-red-700 transition-all shadow-lg flex items-center justify-center group"
+                >
+                    <span>View Commitments</span>
+                    <ArrowRight className="w-4 h-4 ml-2 group-hover:translate-x-1 transition-transform" />
+                </button>
+                </div>            
+
             </div>
+
+            
 
             {/* Right Column - Insights & Patterns */}
             <div className="lg:col-span-2 space-y-6">
@@ -400,12 +426,12 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
                               <span className="font-semibold text-white text-sm">{item.agent}</span>
                               <span className="text-xs text-gray-500">{item.date}</span>
                             </div>
-                            <p className="text-sm text-gray-400 line-clamp-2">
-                                <MarkdownRenderer 
+                        
+                            <MarkdownRenderer 
                                 content={item.advice} 
                                 className="text-gray-200"
                             />
-                            </p>
+                            
                             <div className="mt-2">
                               <span className="text-xs text-gray-600 capitalize">{item.type}</span>
                             </div>
@@ -490,6 +516,16 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
           <div className="max-w-5xl mx-auto">
             <InteractionHistory githubUsername={githubUsername} />
           </div>
+        )}
+
+        {activeTab === 'commitments' && (
+        <div className="max-w-6xl mx-auto">
+            <CommitmentTracker 
+            githubUsername={githubUsername}
+            onReviewComplete={() => setRefreshKey(prev => prev + 1)}
+            />
+            <CommitmentCalendar githubUsername={githubUsername} />
+        </div>
         )}
       </main>
 

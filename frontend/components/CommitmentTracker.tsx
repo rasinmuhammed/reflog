@@ -60,6 +60,8 @@ export default function CommitmentTracker({
   const [shipped, setShipped] = useState<boolean | null>(null)
   const [excuse, setExcuse] = useState('')
   const [feedback, setFeedback] = useState('')
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+    const [quickCommitment, setQuickCommitment] = useState('')
 
   useEffect(() => {
     loadCommitmentData()
@@ -89,6 +91,25 @@ export default function CommitmentTracker({
       setLoading(false)
     }
   }
+
+  const handleQuickCommit = async () => {
+  if (!quickCommitment.trim()) return
+  
+  try {
+    await axios.post(`${API_URL}/checkins/${githubUsername}`, {
+      energy_level: 7,
+      avoiding_what: "Quick commitment - no details",
+      commitment: quickCommitment,
+      mood: "focused"
+    })
+    
+    setQuickCommitment('')
+    setShowQuickAdd(false)
+    await loadCommitmentData()
+  } catch (error) {
+    console.error('Failed to create quick commitment:', error)
+  }
+}
 
   const handleReview = async () => {
     if (shipped === null || !todayCommitment?.checkin_id) return
@@ -151,6 +172,49 @@ export default function CommitmentTracker({
   return (
     <>
       <div className="space-y-6">
+        {/* Quick Add Commitment */}
+        {!todayCommitment?.has_commitment && (
+        <div className="bg-gradient-to-br from-blue-900/50 to-purple-900/50 border-2 border-blue-500/50 rounded-2xl p-6 shadow-2xl">
+            {!showQuickAdd ? (
+            <button
+                onClick={() => setShowQuickAdd(true)}
+                className="w-full flex items-center justify-center space-x-3 text-white hover:scale-105 transition-transform"
+            >
+                <Plus className="w-6 h-6" />
+                <span className="text-lg font-semibold">Set Today's Commitment</span>
+            </button>
+            ) : (
+            <div className="space-y-3">
+                <input
+                type="text"
+                value={quickCommitment}
+                onChange={(e) => setQuickCommitment(e.target.value)}
+                placeholder="What will you ship today?"
+                className="w-full px-4 py-3 bg-gray-800 border border-gray-700 text-gray-200 placeholder-gray-500 rounded-xl focus:ring-2 focus:ring-blue-500"
+                autoFocus
+                onKeyPress={(e) => e.key === 'Enter' && handleQuickCommit()}
+                />
+                <div className="flex space-x-2">
+                <button
+                    onClick={handleQuickCommit}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-purple-600 text-white py-2 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition"
+                >
+                    Commit
+                </button>
+                <button
+                    onClick={() => {
+                    setShowQuickAdd(false)
+                    setQuickCommitment('')
+                    }}
+                    className="px-4 py-2 bg-gray-800 text-gray-300 rounded-xl hover:bg-gray-700 transition"
+                >
+                    Cancel
+                </button>
+                </div>
+            </div>
+            )}
+        </div>
+        )}
         {/* Today's Commitment Card */}
         {todayCommitment?.has_commitment && (
           <div className={`bg-gradient-to-br ${

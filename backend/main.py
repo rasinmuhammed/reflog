@@ -1135,6 +1135,73 @@ def check_reminder_needed(github_username: str, db: Session = Depends(get_db)):
         "check_back_at": "18:00"
     }
 
+@app.get("/commitments/{github_username}/weekly-summary")
+def get_weekly_summary(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get week-by-week commitment summary with insights"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get last 4 weeks of data
+    four_weeks_ago = datetime.now() - timedelta(days=28)
+    
+    checkins = db.query(models.CheckIn).filter(
+        models.CheckIn.user_id == user.id,
+        models.CheckIn.timestamp >= four_weeks_ago,
+        models.CheckIn.shipped != None
+    ).order_by(models.CheckIn.timestamp.asc()).all()
+    
+    # Group by week
+    weeks = {}
+    for checkin in checkins:
+        week_start = checkin.timestamp.date() - timedelta(days=checkin.timestamp.weekday())
+        week_key = week_start.strftime("%Y-%m-%d")
+        
+        if week_key not in weeks:
+            weeks[week_key] = {
+                "shipped": 0,
+                "failed": 0,
+                "total_energy": 0,
+                "count": 0,
+                "commitments": []
+            }
+        
+        weeks[week_key]["count"] += 1
+        weeks[week_key]["total_energy"] += checkin.energy_level
+        weeks[week_key]["commitments"].append({
+            "text": checkin.commitment,
+            "shipped": checkin.shipped,
+            "date": checkin.timestamp.strftime("%Y-%m-%d")
+        })
+        
+        if checkin.shipped:
+            weeks[week_key]["shipped"] += 1
+        else:
+            weeks[week_key]["failed"] += 1
+    
+    # Format for response
+    summary = []
+    for week_start, data in sorted(weeks.items(), reverse=True):
+        summary.append({
+            "week_start": week_start,
+            "shipped": data["shipped"],
+            "failed": data["failed"],
+            "success_rate": round((data["shipped"] / data["count"] * 100), 1) if data["count"] > 0 else 0,
+            "avg_energy": round(data["total_energy"] / data["count"], 1) if data["count"] > 0 else 0,
+            "commitments": data["commitments"]
+        })
+    
+    return {
+        "weeks": summary,
+        "total_weeks": len(summary)
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
