@@ -7,7 +7,7 @@ from database import engine, get_db, init_db
 from models import (
     UserCreate, UserResponse, CheckInCreate, CheckInUpdate, CheckInResponse,
     AgentAdviceResponse, GitHubAnalysisResponse, ChatMessage,
-    LifeDecisionCreate, LifeDecisionResponse
+    LifeDecisionCreate, LifeDecisionResponse, GoalsDashboardResponse
 )
 from github_integration import GitHubAnalyzer
 from crew import SageMentorCrew
@@ -1359,6 +1359,82 @@ def get_goals(
     goals = query.order_by(models.Goal.created_at.desc()).all()
     return goals
 
+@app.get("/goals/{github_username}/dashboard", response_model=GoalsDashboardResponse)
+def get_goals_dashboard(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive goals dashboard"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Use selectinload instead of joinedload for better collection loading
+    active_goals = db.query(models.Goal).options(
+        selectinload(models.Goal.subgoals).selectinload(models.SubGoal.tasks)
+    ).filter(
+        models.Goal.user_id == user.id,
+        models.Goal.status == 'active'
+    ).all()
+    
+    completed_goals = db.query(models.Goal).filter(
+        models.Goal.user_id == user.id,
+        models.Goal.status == 'completed'
+    ).count()
+    
+    # Defensive programming: ensure progress is numeric and handle None
+    total_progress = sum(float(g.progress or 0.0) for g in active_goals)
+    avg_progress = (total_progress / len(active_goals)) if active_goals else 0.0
+    
+    # Fix the milestone query - properly join Goal table
+    recent_milestones = db.query(models.Milestone).join(
+        models.Goal,
+        models.Milestone.goal_id == models.Goal.id
+    ).filter(
+        models.Goal.user_id == user.id,
+        models.Milestone.achieved == True
+    ).options(
+        joinedload(models.Milestone.goal)
+    ).order_by(models.Milestone.achieved_at.desc()).limit(5).all()
+    
+    goals_by_type = {}
+    for goal in active_goals:
+        goal_type_key = goal.goal_type or "unknown"  
+        if goal_type_key not in goals_by_type:
+            goals_by_type[goal_type_key] = 0
+        goals_by_type[goal_type_key] += 1
+    
+    return {
+        "active_goals_count": len(active_goals),
+        "completed_goals_count": completed_goals,
+        "average_progress": round(avg_progress, 1),
+        "goals_by_type": goals_by_type,
+        "active_goals": [
+                {
+                    "id": g.id,
+                    "title": g.title or "Untitled Goal",
+                    "goal_type": g.goal_type or "personal",  
+                    "priority": g.priority or "medium",    
+                    "progress": g.progress or 0.0,        
+                    "target_date": g.target_date.strftime("%Y-%m-%d") if g.target_date else None,
+                    "subgoals_completed": len([sg for sg in g.subgoals if sg.status == 'completed']),
+                    "subgoals_total": len(g.subgoals or []),
+                }
+                for g in active_goals
+            ],
+            "recent_milestones": [
+                {
+                    "title": m.title or "Untitled Milestone",
+                    "goal": m.goal.title if m.goal and m.goal.title else "Unknown Goal", # <-- Made safer
+                    "achieved_at": m.achieved_at.strftime("%Y-%m-%d") if m.achieved_at else None,
+                    "celebration": m.celebration_note or "",
+                }
+                for m in recent_milestones
+            ],
+        }
 
 @app.get("/goals/{github_username}/{goal_id}", response_model=models.GoalResponse)
 def get_goal_detail(
@@ -1693,12 +1769,15 @@ def get_weekly_review(
         raise HTTPException(status_code=500, detail="Failed to generate review")
 
 
-@app.get("/goals/{github_username}/dashboard")
-def get_goals_dashboard(
+@app.patch("/goals/{github_username}/{goal_id}/tasks/{task_id}")
+def update_task_status(
     github_username: str,
+    goal_id: int,
+    task_id: int,
+    status: str,
     db: Session = Depends(get_db)
 ):
-    """Get comprehensive goals dashboard"""
+    """Update a single task's status"""
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -1706,63 +1785,33 @@ def get_goals_dashboard(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    active_goals = db.query(models.Goal).options(
-        joinedload(models.Goal.subgoals)  # Dashboard only needs subgoals, not tasks
+    # Verify the task belongs to a subgoal that belongs to a goal owned by this user
+    task = db.query(models.Task).join(
+        models.SubGoal, models.Task.subgoal_id == models.SubGoal.id
+    ).join(
+        models.Goal, models.SubGoal.goal_id == models.Goal.id
     ).filter(
-        models.Goal.user_id == user.id,
-        models.Goal.status == 'active'
-    ).all()
+        models.Task.id == task_id,
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
     
-    completed_goals = db.query(models.Goal).filter(
-        models.Goal.user_id == user.id,
-        models.Goal.status == 'completed'
-    ).count()
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
     
-    # Defensive programming: ensure progress is numeric
-    total_progress = sum((g.progress or 0) for g in active_goals)
-    avg_progress = total_progress / len(active_goals) if active_goals else 0
+    # Update task status
+    task.status = status
+    if status == 'completed' and not task.completed_at:
+        task.completed_at = datetime.utcnow()
+    elif status != 'completed':
+        task.completed_at = None
     
-    recent_milestones = db.query(models.Milestone).options(
-        joinedload(models.Milestone.goal)  # Eagerly load the parent goal
-    ).join(models.Goal).filter(  # Use a proper inner join
-        models.Goal.user_id == user.id,
-        models.Milestone.achieved == True
-    ).order_by(models.Milestone.achieved_at.desc()).limit(5).all()
+    db.commit()
+    db.refresh(task)
     
-    goals_by_type = {}
-    for goal in active_goals:
-        if goal.goal_type not in goals_by_type:
-            goals_by_type[goal.goal_type] = 0
-        goals_by_type[goal.goal_type] += 1
-    
-    return {
-        "active_goals_count": len(active_goals),
-        "completed_goals_count": completed_goals,
-        "average_progress": round(avg_progress, 1),
-        "goals_by_type": goals_by_type,
-        "active_goals": [
-            {
-                "id": g.id,
-                "title": g.title or "Untitled Goal",
-                "type": g.goal_type,
-                "priority": g.priority,
-                "progress": g.progress or 0,
-                "target_date": g.target_date.strftime("%Y-%m-%d") if g.target_date else None,
-                "subgoals_completed": len([sg for sg in g.subgoals if sg.status == 'completed']),
-                "subgoals_total": len(g.subgoals or []),
-            }
-            for g in active_goals
-        ],
-        "recent_milestones": [
-            {
-                "title": m.title or "Untitled Milestone",
-                "goal": m.goal.title if m.goal else "Unknown Goal", # This is now safer
-                "achieved_at": m.achieved_at.strftime("%Y-%m-%d") if m.achieved_at else None,
-                "celebration": m.celebration_note or "",
-            }
-            for m in recent_milestones
-        ],
-    }
+    return {"message": "Task updated successfully", "task": task}
+
+
 
 if __name__ == "__main__":
     import uvicorn

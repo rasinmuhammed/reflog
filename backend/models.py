@@ -272,19 +272,18 @@ class TaskCreate(BaseModel):
 
 class TaskResponse(BaseModel):
     id: int
-    title: str
-    description: Optional[str]
-    status: str
-    priority: str
-    estimated_hours: Optional[float]
-    actual_hours: Optional[float]
-    due_date: Optional[datetime]
-    created_at: datetime
-    completed_at: Optional[datetime]
+    title: Optional[str] = "Untitled Task"
+    description: Optional[str] = None
+    status: Optional[str] = "todo"
+    priority: Optional[str] = "medium"
+    estimated_hours: Optional[float] = None
+    actual_hours: Optional[float] = None
+    due_date: Optional[datetime] = None
+    created_at: Optional[datetime] = None # Make created_at optional just in case
+    completed_at: Optional[datetime] = None
     
     class Config:
         from_attributes = True
-
 class SubGoalCreate(BaseModel):
     title: str
     description: Optional[str] = None
@@ -294,14 +293,14 @@ class SubGoalCreate(BaseModel):
 
 class SubGoalResponse(BaseModel):
     id: int
-    title: str
-    description: Optional[str]
-    order: int
-    status: str
-    progress: float
-    target_date: Optional[datetime]
-    created_at: datetime
-    completed_at: Optional[datetime]
+    title: Optional[str] = "Untitled Subgoal"
+    description: Optional[str] = None
+    order: Optional[int] = 0
+    status: Optional[str] = "pending"
+    progress: Optional[float] = 0.0
+    target_date: Optional[datetime] = None
+    created_at: Optional[datetime] = None # Make created_at optional
+    completed_at: Optional[datetime] = None
     tasks: List[TaskResponse] = []
     
     class Config:
@@ -336,21 +335,21 @@ class GoalCreate(BaseModel):
 
 class GoalResponse(BaseModel):
     id: int
-    title: str
-    description: str
-    goal_type: str
-    priority: str
-    status: str
-    progress: float
-    target_date: Optional[datetime]
-    created_at: datetime
-    updated_at: datetime
-    completed_at: Optional[datetime]
-    success_criteria: Optional[Dict]
-    current_metrics: Optional[Dict]
-    ai_analysis: Optional[str]
-    ai_insights: Optional[Dict]
-    obstacles_identified: Optional[Dict]
+    title: Optional[str] = "Untitled Goal"
+    description: Optional[str] = ""
+    goal_type: Optional[str] = "personal"
+    priority: Optional[str] = "medium"
+    status: Optional[str] = "active"
+    progress: Optional[float] = 0.0
+    target_date: Optional[datetime] = None
+    created_at: Optional[datetime] = None # Make created_at optional
+    updated_at: Optional[datetime] = None # Make updated_at optional
+    completed_at: Optional[datetime] = None
+    success_criteria: Optional[Dict] = None
+    current_metrics: Optional[Dict] = None
+    ai_analysis: Optional[str] = None
+    ai_insights: Optional[Dict] = None
+    obstacles_identified: Optional[Dict] = None
     subgoals: List[SubGoalResponse] = []
     milestones: List[MilestoneResponse] = []
     
@@ -384,3 +383,36 @@ class GoalUpdateRequest(BaseModel):
     status: Optional[str] = None
     target_date: Optional[datetime] = None
     success_criteria: Optional[List[str]] = None
+
+class DashboardGoal(BaseModel):
+    id: int
+    title: Optional[str] = "Untitled Goal"
+    goal_type: Optional[str] = "personal" # Renamed from 'type'
+    priority: Optional[str] = "medium"
+    progress: Optional[float] = 0.0
+    target_date: Optional[str] = None
+    subgoals_completed: int = 0
+    subgoals_total: int = 0
+
+    class Config:
+        from_attributes = True
+
+class DashboardMilestone(BaseModel):
+    title: Optional[str] = "Untitled Milestone"
+    goal: Optional[str] = "Unknown Goal"
+    achieved_at: Optional[str] = None # String, since we format it
+    celebration: Optional[str] = ""
+
+    class Config:
+        from_attributes = True
+
+class GoalsDashboardResponse(BaseModel):
+    active_goals_count: int
+    completed_goals_count: int
+    average_progress: float
+    goals_by_type: Dict[str, int]
+    active_goals: List[DashboardGoal]
+    recent_milestones: List[DashboardMilestone]
+
+    class Config:
+        from_attributes = True

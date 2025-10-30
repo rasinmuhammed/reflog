@@ -508,35 +508,45 @@ function ProgressModal({
     setIsLoading(true)
     setError(null)
     try {
-      // Find only the tasks that have changed status
-      const updatedTasks = Object.entries(taskStatuses)
+        // Update each task that changed status
+        const updatePromises = Object.entries(taskStatuses)
         .filter(([taskId, status]) => {
-          let originalStatus = 'pending' // Default
-          goal.subgoals.forEach(sg => {
+            let originalStatus = 'pending' // Default
+            goal.subgoals.forEach(sg => {
             const task = sg.tasks.find(t => t.id === Number(taskId))
             if (task) originalStatus = task.status
-          })
-          return originalStatus !== status
+            })
+            return originalStatus !== status
         })
-        .map(([taskId, status]) => ({ id: Number(taskId), status }))
+        .map(([taskId, status]) =>
+            axios.patch(
+            `${API_URL}/goals/${githubUsername}/${goal.id}/tasks/${taskId}`,
+            null,
+            { params: { status } }
+            )
+        )
 
-      // Send the new overall progress and the changed tasks
-      await axios.post(
+        // Wait for all task updates to complete
+        await Promise.all(updatePromises)
+
+        // Then update the overall goal progress
+        await axios.post(
         `${API_URL}/goals/${githubUsername}/${goal.id}/progress`,
         {
-          progress: currentProgress,
-          tasks: updatedTasks
+            progress: currentProgress,
+            notes: `Progress updated to ${currentProgress}%`,
+            mood: 'focused'
         }
-      )
+        )
 
-      onComplete() // This will close the modal and refresh the data
+        onComplete() // This will close the modal and refresh the data
     } catch (err) {
-      console.error('Failed to log progress:', err)
-      setError('Failed to save progress. Please try again.')
+        console.error('Failed to log progress:', err)
+        setError('Failed to save progress. Please try again.')
     } finally {
-      setIsLoading(false)
+        setIsLoading(false)
     }
-  }
+    }
 
   return (
     <div
