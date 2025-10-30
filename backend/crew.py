@@ -496,3 +496,357 @@ class SageMentorCrew:
                 })
         
         return actions[:3]
+    
+    def analyze_goal(self, goal_data: Dict, user_context: Dict, db) -> Dict:
+        """Comprehensive AI analysis of a life goal"""
+        
+        context_str = f"""
+        Goal Details:
+        - Title: {goal_data['title']}
+        - Type: {goal_data['goal_type']}
+        - Priority: {goal_data['priority']}
+        - Target Date: {goal_data.get('target_date', 'Not set')}
+        - Success Criteria: {goal_data.get('success_criteria', [])}
+        
+        User Context:
+        - GitHub Activity: {user_context.get('github_stats', {})}
+        - Recent Performance: {user_context.get('recent_performance', {})}
+        - Past Goals: {user_context.get('past_goals', [])}
+        """
+        
+        analyst_task = Task(
+            description=f"""Analyze this goal from a data perspective:
+            
+            {context_str}
+            
+            Your job:
+            1. Is this goal specific and measurable enough?
+            2. Based on their GitHub data and past performance, is this realistic?
+            3. What's the estimated time/effort required?
+            4. Are the success criteria clear and achievable?
+            5. What resources or skills are missing?
+            6. Rate the goal's clarity and feasibility (1-10)
+            
+            Be brutally honest about whether this goal is well-defined or wishful thinking.""",
+            agent=self.analyst,
+            expected_output="Data-driven analysis with feasibility assessment"
+        )
+        
+        psychologist_task = Task(
+            description=f"""Analyze the psychological aspects of this goal:
+            
+            {context_str}
+            
+            Your job:
+            1. What's the REAL motivation behind this goal? (surface vs deep)
+            2. Any signs this is driven by external pressure or comparison?
+            3. Does this align with their demonstrated interests and energy?
+            4. What psychological obstacles might derail this?
+            5. Is this goal too ambitious (setting up for failure) or too safe?
+            6. What mindset shifts are needed?
+            
+            Look for misalignment between stated goals and actual behavior patterns.""",
+            agent=self.psychologist,
+            expected_output="Psychological analysis with motivation assessment",
+            context=[analyst_task]
+        )
+        
+        contrarian_task = Task(
+            description=f"""Challenge this goal ruthlessly:
+            
+            {context_str}
+            
+            Your job:
+            1. What if this goal is actually a distraction from something else?
+            2. Is this goal based on who they want to be or who they think they should be?
+            3. What are they avoiding by pursuing this goal?
+            4. Could achieving this goal make them unhappy?
+            5. What's the opportunity cost?
+            6. Is this goal worth it?
+            
+            Play devil's advocate. Ask the uncomfortable questions.""",
+            agent=self.contrarian,
+            expected_output="Contrarian perspective challenging goal validity",
+            context=[analyst_task, psychologist_task]
+        )
+        
+        strategist_task = Task(
+            description=f"""Create actionable strategy for this goal:
+            
+            {context_str}
+            
+            Your job:
+            1. Break down into 3-5 major subgoals (sequential or parallel)
+            2. For each subgoal, suggest 2-4 concrete tasks
+            3. Identify critical milestones (30/60/90 day markers)
+            4. Suggest weekly commitment (hours/actions)
+            5. Define clear success metrics
+            6. Identify likely obstacles and mitigation strategies
+            7. Create accountability checkpoints
+            
+            Be specific. No vague advice. Include dates, numbers, and measurable outcomes.""",
+            agent=self.strategist,
+            expected_output="Detailed execution strategy with subgoals and tasks",
+            context=[analyst_task, psychologist_task, contrarian_task]
+        )
+        
+        crew = Crew(
+            agents=[self.analyst, self.psychologist, self.contrarian, self.strategist],
+            tasks=[analyst_task, psychologist_task, contrarian_task, strategist_task],
+            process=Process.sequential,
+            verbose=True
+        )
+        
+        result = crew.kickoff()
+        
+        return self._parse_goal_analysis(str(result), goal_data)
+    
+    def _parse_goal_analysis(self, analysis: str, goal_data: Dict) -> Dict:
+        """Parse the goal analysis into structured format"""
+        
+        # Extract key insights
+        insights = []
+        obstacles = []
+        recommendations = []
+        
+        lines = analysis.split('\n')
+        current_section = None
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                continue
+                
+            # Detect sections
+            if 'obstacle' in line.lower() or 'challenge' in line.lower():
+                current_section = 'obstacles'
+            elif 'insight' in line.lower() or 'finding' in line.lower():
+                current_section = 'insights'
+            elif 'recommend' in line.lower() or 'action' in line.lower() or 'strategy' in line.lower():
+                current_section = 'recommendations'
+            
+            # Extract content
+            if line.startswith('-') or line.startswith('•') or line[0].isdigit():
+                clean_line = line.lstrip('-•0123456789. ').strip()
+                if current_section == 'obstacles':
+                    obstacles.append(clean_line)
+                elif current_section == 'insights':
+                    insights.append(clean_line)
+                elif current_section == 'recommendations':
+                    recommendations.append(clean_line)
+        
+        # Extract subgoals from the analysis
+        suggested_subgoals = self._extract_subgoals(analysis)
+        
+        return {
+            "analysis": analysis,
+            "insights": insights[:5],
+            "obstacles": obstacles[:5],
+            "recommendations": recommendations[:5],
+            "suggested_subgoals": suggested_subgoals,
+            "feasibility_score": self._extract_score(analysis),
+            "estimated_duration": self._estimate_duration(analysis)
+        }
+    
+    def _extract_subgoals(self, text: str) -> List[Dict]:
+        """Extract suggested subgoals from analysis"""
+        subgoals = []
+        lines = text.split('\n')
+        
+        in_subgoals_section = False
+        for line in lines:
+            if 'subgoal' in line.lower() or 'step' in line.lower():
+                in_subgoals_section = True
+            elif in_subgoals_section and (line.startswith('-') or line.startswith('•') or line[0].isdigit()):
+                clean = line.lstrip('-•0123456789. ').strip()
+                if len(clean) > 10:  # Valid subgoal
+                    subgoals.append({
+                        "title": clean[:200],
+                        "order": len(subgoals) + 1
+                    })
+                if len(subgoals) >= 5:
+                    break
+        
+        return subgoals
+    
+    def _extract_score(self, text: str) -> int:
+        """Extract feasibility score from analysis"""
+        import re
+        # Look for patterns like "8/10" or "score: 7"
+        patterns = [
+            r'(\d+)/10',
+            r'score[:\s]+(\d+)',
+            r'rate[:\s]+(\d+)',
+            r'feasibility[:\s]+(\d+)'
+        ]
+        
+        for pattern in patterns:
+            match = re.search(pattern, text.lower())
+            if match:
+                return int(match.group(1))
+        
+        return 7  # Default
+    
+    def _estimate_duration(self, text: str) -> str:
+        """Estimate goal duration from analysis"""
+        text_lower = text.lower()
+        
+        if 'years' in text_lower or 'long-term' in text_lower:
+            return "6-12 months"
+        elif 'months' in text_lower:
+            return "3-6 months"
+        elif 'weeks' in text_lower:
+            return "1-3 months"
+        else:
+            return "3-6 months"  # Default
+    
+    def analyze_goal_progress(self, goal, progress_data: Dict, user_id: int, db) -> Dict:
+        """Analyze progress update on a goal"""
+        
+        # Get recent progress logs
+        recent_logs = db.query(models.GoalProgress).filter(
+            models.GoalProgress.goal_id == goal.id
+        ).order_by(models.GoalProgress.timestamp.desc()).limit(5).all()
+        
+        progress_history = [
+            {
+                "date": log.timestamp.strftime("%Y-%m-%d"),
+                "progress": log.progress,
+                "notes": log.notes,
+                "obstacles": log.obstacles,
+                "wins": log.wins
+            }
+            for log in recent_logs
+        ]
+        
+        analysis_task = Task(
+            description=f"""Analyze this goal progress update:
+            
+            Goal: {goal.title}
+            Current Progress: {progress_data['progress']}%
+            Previous Progress: {progress_history[0]['progress'] if progress_history else 0}%
+            
+            Progress History (last 5 updates):
+            {json.dumps(progress_history, indent=2)}
+            
+            Current Update:
+            - Notes: {progress_data.get('notes', 'None')}
+            - Obstacles: {progress_data.get('obstacles', 'None')}
+            - Wins: {progress_data.get('wins', 'None')}
+            - Mood: {progress_data.get('mood', 'Not specified')}
+            
+            Your job:
+            1. Is the progress rate healthy or stalling?
+            2. Are obstacles being addressed or accumulating?
+            3. Is their mood/energy sustainable?
+            4. Are wins genuine milestones or busywork?
+            5. What should they focus on next?
+            6. Any red flags suggesting goal should be reconsidered?
+            
+            Be direct. If they're making excuses, call it out.""",
+            agent=self.psychologist,
+            expected_output="Progress analysis with specific next steps"
+        )
+        
+        crew = Crew(
+            agents=[self.psychologist],
+            tasks=[analysis_task],
+            process=Process.sequential,
+            verbose=False
+        )
+        
+        result = crew.kickoff()
+        
+        return {
+            "feedback": str(result),
+            "progress_rate": self._calculate_progress_rate(progress_history, progress_data['progress']),
+            "needs_attention": self._needs_attention(str(result))
+        }
+    
+    def _calculate_progress_rate(self, history: List[Dict], current: float) -> str:
+        """Calculate if progress rate is healthy"""
+        if not history:
+            return "insufficient_data"
+        
+        prev = history[0]['progress']
+        change = current - prev
+        
+        if change > 10:
+            return "excellent"
+        elif change > 5:
+            return "good"
+        elif change > 0:
+            return "slow"
+        else:
+            return "stalled"
+    
+    def _needs_attention(self, feedback: str) -> bool:
+        """Determine if goal needs immediate attention"""
+        warning_words = ['stall', 'stuck', 'concern', 'warning', 'red flag', 'reconsider']
+        return any(word in feedback.lower() for word in warning_words)
+    
+    def weekly_goals_review(self, user_id: int, db) -> Dict:
+        """Weekly review of all active goals"""
+        
+        goals = db.query(models.Goal).filter(
+            models.Goal.user_id == user_id,
+            models.Goal.status == 'active'
+        ).all()
+        
+        if not goals:
+            return {"message": "No active goals to review"}
+        
+        goals_summary = []
+        for goal in goals:
+            recent_progress = db.query(models.GoalProgress).filter(
+                models.GoalProgress.goal_id == goal.id
+            ).order_by(models.GoalProgress.timestamp.desc()).first()
+            
+            goals_summary.append({
+                "title": goal.title,
+                "progress": goal.progress,
+                "priority": goal.priority,
+                "target_date": goal.target_date.strftime("%Y-%m-%d") if goal.target_date else "No deadline",
+                "last_update": recent_progress.timestamp.strftime("%Y-%m-%d") if recent_progress else "Never",
+                "subgoals_completed": len([sg for sg in goal.subgoals if sg.status == "completed"]),
+                "subgoals_total": len(goal.subgoals)
+            })
+        
+        review_task = Task(
+            description=f"""Weekly goals review:
+            
+            Active Goals:
+            {json.dumps(goals_summary, indent=2)}
+            
+            Your job:
+            1. Which goal should be the TOP priority this week?
+            2. Any goals that are neglected or stalling?
+            3. Any goals that should be paused or abandoned?
+            4. Are they spreading too thin across too many goals?
+            5. Suggest the ONE goal to make significant progress on
+            6. Create specific weekly commitment (X hours on Y goal)
+            
+            Be ruthless about prioritization. Less is more.""",
+            agent=self.strategist,
+            expected_output="Weekly priority guidance with specific focus"
+        )
+        
+        crew = Crew(
+            agents=[self.strategist],
+            tasks=[review_task],
+            process=Process.sequential,
+            verbose=False
+        )
+        
+        result = crew.kickoff()
+        
+        return {
+            "review": str(result),
+            "goals_count": len(goals),
+            "needs_reprioritization": self._needs_reprioritization(goals_summary)
+        }
+    
+    def _needs_reprioritization(self, goals: List[Dict]) -> bool:
+        """Check if user has too many active goals"""
+        high_priority = len([g for g in goals if g['priority'] in ['critical', 'high']])
+        return high_priority > 3  # More than 3 high-priority goals is too many

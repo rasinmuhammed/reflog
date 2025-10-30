@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Dict, Optional
 import models
 from database import engine, get_db, init_db
@@ -1200,6 +1200,568 @@ def get_weekly_summary(
     return {
         "weeks": summary,
         "total_weeks": len(summary)
+    }
+
+# ==================== GOALS ENDPOINTS ====================
+
+@app.post("/goals/{github_username}", response_model=models.GoalResponse)
+async def create_goal(
+    github_username: str,
+    goal: models.GoalCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new life goal with AI analysis"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user context for AI analysis
+    github_analysis = db.query(models.GitHubAnalysis).filter(
+        models.GitHubAnalysis.user_id == user.id
+    ).order_by(models.GitHubAnalysis.analyzed_at.desc()).first()
+    
+    recent_checkins = db.query(models.CheckIn).filter(
+        models.CheckIn.user_id == user.id,
+        models.CheckIn.shipped != None
+    ).order_by(models.CheckIn.timestamp.desc()).limit(30).all()
+    
+    past_goals = db.query(models.Goal).filter(
+        models.Goal.user_id == user.id,
+        models.Goal.status == 'completed'
+    ).all()
+    
+    user_context = {
+        "github_stats": {
+            "total_repos": github_analysis.total_repos if github_analysis else 0,
+            "active_repos": github_analysis.active_repos if github_analysis else 0,
+            "languages": github_analysis.languages if github_analysis else {}
+        },
+        "recent_performance": {
+            "success_rate": (sum(1 for c in recent_checkins if c.shipped) / len(recent_checkins) * 100) if recent_checkins else 0,
+            "avg_energy": sum(c.energy_level for c in recent_checkins) / len(recent_checkins) if recent_checkins else 0
+        },
+        "past_goals": [
+            {"title": g.title, "completed": g.completed_at.strftime("%Y-%m-%d") if g.completed_at else None}
+            for g in past_goals
+        ]
+    }
+    
+    # Create goal first
+    new_goal = models.Goal(
+        user_id=user.id,
+        title=goal.title,
+        description=goal.description,
+        goal_type=goal.goal_type,
+        priority=goal.priority,
+        target_date=goal.target_date,
+        success_criteria={"criteria": goal.success_criteria} if goal.success_criteria else None
+    )
+    db.add(new_goal)
+    db.commit()
+    db.refresh(new_goal)
+    
+    print(f"🎯 Goal created (ID: {new_goal.id}), analyzing...")
+    
+    # AI Analysis
+    try:
+        analysis = sage_crew.analyze_goal(
+            {
+                "title": goal.title,
+                "description": goal.description,
+                "goal_type": goal.goal_type,
+                "priority": goal.priority,
+                "target_date": goal.target_date.isoformat() if goal.target_date else None,
+                "success_criteria": goal.success_criteria
+            },
+            user_context,
+            db
+        )
+        
+        # Update goal with AI analysis
+        new_goal.ai_analysis = analysis["analysis"]
+        new_goal.ai_insights = {
+            "insights": analysis["insights"],
+            "obstacles": analysis["obstacles"],
+            "recommendations": analysis["recommendations"],
+            "feasibility_score": analysis["feasibility_score"],
+            "estimated_duration": analysis["estimated_duration"]
+        }
+        new_goal.obstacles_identified = {"obstacles": analysis["obstacles"]}
+        
+        # Create suggested subgoals
+        for sg in analysis["suggested_subgoals"]:
+            subgoal = models.SubGoal(
+                goal_id=new_goal.id,
+                title=sg["title"],
+                order=sg["order"]
+            )
+            db.add(subgoal)
+        
+        # Create milestones if provided
+        if goal.milestones:
+            for ms in goal.milestones:
+                milestone = models.Milestone(
+                    goal_id=new_goal.id,
+                    title=ms.title,
+                    description=ms.description,
+                    target_date=ms.target_date
+                )
+                db.add(milestone)
+        
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(new_goal, "ai_insights")
+        flag_modified(new_goal, "obstacles_identified")
+        
+        db.commit()
+        db.refresh(new_goal)
+        
+        print(f"✅ Goal analysis complete")
+        
+    except Exception as e:
+        print(f"❌ Goal analysis failed: {str(e)}")
+        # Continue without analysis if it fails
+    
+    return new_goal
+
+
+@app.get("/goals/{github_username}", response_model=List[models.GoalResponse])
+def get_goals(
+    github_username: str,
+    status: str = None,  # active, completed, paused, abandoned
+    goal_type: str = None,
+    db: Session = Depends(get_db)
+):
+    """Get all goals for a user with optional filters"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Base query
+    query = db.query(models.Goal).filter(models.Goal.user_id == user.id)
+    
+    if status:
+        query = query.filter(models.Goal.status == status)
+    if goal_type:
+        query = query.filter(models.Goal.goal_type == goal_type)
+
+    # Use nested joinedload for sync endpoints
+    query = query.options(
+        joinedload(models.Goal.subgoals).joinedload(models.SubGoal.tasks),
+        joinedload(models.Goal.milestones)
+    )
+    
+    goals = query.order_by(models.Goal.created_at.desc()).all()
+    return goals
+
+
+@app.get("/goals/{github_username}/{goal_id}", response_model=models.GoalResponse)
+def get_goal_detail(
+    github_username: str,
+    goal_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get detailed view of a specific goal"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    goal = db.query(models.Goal).options(
+        joinedload(models.Goal.subgoals).joinedload(models.SubGoal.tasks),
+        joinedload(models.Goal.milestones)
+    ).filter(
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    return goal
+
+
+@app.patch("/goals/{github_username}/{goal_id}")
+def update_goal(
+    github_username: str,
+    goal_id: int,
+    update: models.GoalUpdateRequest,
+    db: Session = Depends(get_db)
+):
+    """Update goal details"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    goal = db.query(models.Goal).filter(
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Update fields
+    if update.title:
+        goal.title = update.title
+    if update.description:
+        goal.description = update.description
+    if update.priority:
+        goal.priority = update.priority
+    if update.status:
+        goal.status = update.status
+        if update.status == 'completed' and not goal.completed_at:
+            goal.completed_at = datetime.utcnow()
+    if update.target_date:
+        goal.target_date = update.target_date
+    if update.success_criteria:
+        goal.success_criteria = {"criteria": update.success_criteria}
+        from sqlalchemy.orm.attributes import flag_modified
+        flag_modified(goal, "success_criteria")
+    
+    goal.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(goal)
+    
+    return {"message": "Goal updated", "goal": goal}
+
+
+@app.post("/goals/{github_username}/{goal_id}/progress")
+def log_progress(
+    github_username: str,
+    goal_id: int,
+    progress: models.GoalProgressCreate,
+    db: Session = Depends(get_db)
+):
+    """Log progress update for a goal"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    goal = db.query(models.Goal).filter(
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    # Create progress log
+    progress_log = models.GoalProgress(
+        goal_id=goal.id,
+        progress=progress.progress,
+        notes=progress.notes,
+        mood=progress.mood,
+        obstacles=progress.obstacles,
+        wins=progress.wins
+    )
+    db.add(progress_log)
+    
+    # Update goal progress
+    goal.progress = progress.progress
+    goal.updated_at = datetime.utcnow()
+    
+    db.commit()
+    db.refresh(progress_log)
+    
+    # AI Feedback
+    try:
+        analysis = sage_crew.analyze_goal_progress(
+            goal,
+            {
+                "progress": progress.progress,
+                "notes": progress.notes,
+                "obstacles": progress.obstacles,
+                "wins": progress.wins,
+                "mood": progress.mood
+            },
+            user.id,
+            db
+        )
+        
+        progress_log.ai_feedback = analysis["feedback"]
+        db.commit()
+        
+        return {
+            "message": "Progress logged",
+            "progress_id": progress_log.id,
+            "ai_feedback": analysis["feedback"],
+            "progress_rate": analysis["progress_rate"],
+            "needs_attention": analysis["needs_attention"]
+        }
+    except Exception as e:
+        print(f"❌ Progress analysis failed: {str(e)}")
+        return {
+            "message": "Progress logged (AI analysis unavailable)",
+            "progress_id": progress_log.id
+        }
+
+
+@app.get("/goals/{github_username}/{goal_id}/progress", response_model=List[models.GoalProgressResponse])
+def get_progress_history(
+    github_username: str,
+    goal_id: int,
+    limit: int = 20,
+    db: Session = Depends(get_db)
+):
+    """Get progress history for a goal"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    goal = db.query(models.Goal).filter(
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    progress_logs = db.query(models.GoalProgress).filter(
+        models.GoalProgress.goal_id == goal.id
+    ).order_by(models.GoalProgress.timestamp.desc()).limit(limit).all()
+    
+    return progress_logs
+
+
+@app.post("/goals/{github_username}/{goal_id}/subgoals")
+def create_subgoal(
+    github_username: str,
+    goal_id: int,
+    subgoal: models.SubGoalCreate,
+    db: Session = Depends(get_db)
+):
+    """Add a subgoal to a goal"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    goal = db.query(models.Goal).filter(
+        models.Goal.id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found")
+    
+    new_subgoal = models.SubGoal(
+        goal_id=goal.id,
+        title=subgoal.title,
+        description=subgoal.description,
+        order=subgoal.order,
+        target_date=subgoal.target_date
+    )
+    db.add(new_subgoal)
+    db.commit()
+    db.refresh(new_subgoal)
+    
+    # Create tasks if provided
+    if subgoal.tasks:
+        for task_data in subgoal.tasks:
+            task = models.Task(
+                subgoal_id=new_subgoal.id,
+                title=task_data.title,
+                description=task_data.description,
+                priority=task_data.priority,
+                estimated_hours=task_data.estimated_hours,
+                due_date=task_data.due_date
+            )
+            db.add(task)
+        db.commit()
+    
+    return {"message": "Subgoal created", "subgoal": new_subgoal}
+
+
+@app.patch("/goals/{github_username}/{goal_id}/subgoals/{subgoal_id}")
+def update_subgoal_status(
+    github_username: str,
+    goal_id: int,
+    subgoal_id: int,
+    status: str,
+    db: Session = Depends(get_db)
+):
+    """Update subgoal status"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    subgoal = db.query(models.SubGoal).join(models.Goal).filter(
+        models.SubGoal.id == subgoal_id,
+        models.SubGoal.goal_id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not subgoal:
+        raise HTTPException(status_code=404, detail="Subgoal not found")
+    
+    subgoal.status = status
+    if status == 'completed':
+        subgoal.completed_at = datetime.utcnow()
+        subgoal.progress = 100.0
+    
+    db.commit()
+    
+    # Update parent goal progress
+    goal = subgoal.parent_goal
+    total_subgoals = len(goal.subgoals)
+    completed_subgoals = len([sg for sg in goal.subgoals if sg.status == 'completed'])
+    goal.progress = (completed_subgoals / total_subgoals * 100) if total_subgoals > 0 else 0
+    
+    db.commit()
+    
+    return {"message": "Subgoal updated", "goal_progress": goal.progress}
+
+
+@app.post("/goals/{github_username}/{goal_id}/milestones/{milestone_id}/achieve")
+def achieve_milestone(
+    github_username: str,
+    goal_id: int,
+    milestone_id: int,
+    celebration_note: str = None,
+    db: Session = Depends(get_db)
+):
+    """Mark a milestone as achieved"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    milestone = db.query(models.Milestone).join(models.Goal).filter(
+        models.Milestone.id == milestone_id,
+        models.Milestone.goal_id == goal_id,
+        models.Goal.user_id == user.id
+    ).first()
+    
+    if not milestone:
+        raise HTTPException(status_code=404, detail="Milestone not found")
+    
+    milestone.achieved = True
+    milestone.achieved_at = datetime.utcnow()
+    milestone.celebration_note = celebration_note
+    
+    db.commit()
+    
+    return {
+        "message": "🎉 Milestone achieved! Celebrate this win!",
+        "milestone": milestone.title
+    }
+
+
+@app.get("/goals/{github_username}/weekly-review")
+def get_weekly_review(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get weekly goals review with AI guidance"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    try:
+        review = sage_crew.weekly_goals_review(user.id, db)
+        return review
+    except Exception as e:
+        print(f"❌ Weekly review failed: {str(e)}")
+        raise HTTPException(status_code=500, detail="Failed to generate review")
+
+
+@app.get("/goals/{github_username}/dashboard")
+def get_goals_dashboard(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get comprehensive goals dashboard"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    active_goals = db.query(models.Goal).options(
+        joinedload(models.Goal.subgoals)  # Dashboard only needs subgoals, not tasks
+    ).filter(
+        models.Goal.user_id == user.id,
+        models.Goal.status == 'active'
+    ).all()
+    
+    completed_goals = db.query(models.Goal).filter(
+        models.Goal.user_id == user.id,
+        models.Goal.status == 'completed'
+    ).count()
+    
+    # Defensive programming: ensure progress is numeric
+    total_progress = sum((g.progress or 0) for g in active_goals)
+    avg_progress = total_progress / len(active_goals) if active_goals else 0
+    
+    recent_milestones = db.query(models.Milestone).options(
+        joinedload(models.Milestone.goal)  # Eagerly load the parent goal
+    ).join(models.Goal).filter(  # Use a proper inner join
+        models.Goal.user_id == user.id,
+        models.Milestone.achieved == True
+    ).order_by(models.Milestone.achieved_at.desc()).limit(5).all()
+    
+    goals_by_type = {}
+    for goal in active_goals:
+        if goal.goal_type not in goals_by_type:
+            goals_by_type[goal.goal_type] = 0
+        goals_by_type[goal.goal_type] += 1
+    
+    return {
+        "active_goals_count": len(active_goals),
+        "completed_goals_count": completed_goals,
+        "average_progress": round(avg_progress, 1),
+        "goals_by_type": goals_by_type,
+        "active_goals": [
+            {
+                "id": g.id,
+                "title": g.title or "Untitled Goal",
+                "type": g.goal_type,
+                "priority": g.priority,
+                "progress": g.progress or 0,
+                "target_date": g.target_date.strftime("%Y-%m-%d") if g.target_date else None,
+                "subgoals_completed": len([sg for sg in g.subgoals if sg.status == 'completed']),
+                "subgoals_total": len(g.subgoals or []),
+            }
+            for g in active_goals
+        ],
+        "recent_milestones": [
+            {
+                "title": m.title or "Untitled Milestone",
+                "goal": m.goal.title if m.goal else "Unknown Goal", # This is now safer
+                "achieved_at": m.achieved_at.strftime("%Y-%m-%d") if m.achieved_at else None,
+                "celebration": m.celebration_note or "",
+            }
+            for m in recent_milestones
+        ],
     }
 
 if __name__ == "__main__":

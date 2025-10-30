@@ -4,15 +4,16 @@ import { useState, useEffect } from 'react'
 import { UserButton } from '@clerk/nextjs'
 import axios from 'axios'
 import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, X, History, Eye, Calendar as CalendarIcon, ArrowRight } from 'lucide-react'
-import CheckInModal from './CheckInModal' // Ensure this component is also updated with new colors
-import AgentInsights from './AgentInsights' // Ensure this component is also updated with new colors
-import Chat from './Chat' // Ensure this component is also updated with new colors
-import LifeDecisions from './LifeDecisions' // Ensure this component is also updated with new colors
-import InteractionHistory from './InteractionHistory' // Ensure this component is also updated with new colors
-import MarkdownRenderer from './MarkdownRenderer' // Ensure this component renders text in #FBFAEE
-import CommitmentTracker from './CommitmentTracker' // Ensure this component is also updated with new colors
-import NotificationBanner from './NotificationBanner' // Ensure this component is also updated with new colors
-import CommitmentCalendar from './CommitmentCalendar' // Ensure this component is also updated with new colors
+import CheckInModal from './CheckInModal' 
+import AgentInsights from './AgentInsights' 
+import Chat from './Chat' 
+import LifeDecisions from './LifeDecisions' 
+import InteractionHistory from './InteractionHistory' 
+import MarkdownRenderer from './MarkdownRenderer' 
+import CommitmentTracker from './CommitmentTracker' 
+import NotificationBanner from './NotificationBanner' 
+import CommitmentCalendar from './CommitmentCalendar'
+import Goals from './Goals' 
 
 // Assuming API_URL is defined elsewhere or replace with actual URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -51,7 +52,7 @@ interface DashboardData {
   }>
 }
 
-type TabType = 'overview' | 'chat' | 'commitments' | 'decisions' | 'history'
+type TabType = 'overview' | 'chat' | 'commitments' | 'goals'| 'decisions' | 'history'
 
 export default function Dashboard({ githubUsername }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -128,6 +129,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
     { id: 'overview', label: 'Overview', icon: Target },
     { id: 'chat', label: 'Chat', icon: MessageCircle },
     { id: 'commitments', label: 'Commitments', icon: CalendarIcon },
+    { id: 'goals', label: 'Goals', icon: Target },
     { id: 'decisions', label: 'Decisions', icon: BookOpen },
     { id: 'history', label: 'History', icon: History }
   ];
@@ -524,6 +526,12 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
             <CommitmentCalendar githubUsername={githubUsername} />
           </div>
         )}
+
+        {activeTab === 'goals' && (
+            <div className="max-w-6xl mx-auto">
+              <Goals githubUsername={githubUsername} />
+            </div>
+          )}
 
         {activeTab === 'decisions' && (
           <div className="max-w-6xl mx-auto">
