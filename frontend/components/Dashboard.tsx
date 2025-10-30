@@ -185,7 +185,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
             <div className="flex items-center space-x-3">
               <button
                 onClick={() => setShowCheckin(true)}
-                className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-[#933DC9] to-[#53118F] text-[#FBFAEE] px-5 py-2.5 rounded-xl font-semibold hover:brightness-110 transition-all shadow-lg hover:shadow-[#933DC9]/40"
+                className="hidden md:flex items-center space-x-2 bg-gradient-to-r from-[#933DC9] to-[#53118F] px-5 py-2.5 rounded-xl font-semibold hover:brightness-110 transition-all shadow-lg hover:shadow-[#933DC9]/40"
               >
                 <CalendarIcon className="w-4 h-4" />
                 <span>Daily Check-in</span>

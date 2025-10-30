@@ -18,7 +18,7 @@ from typing import Optional
 
 init_db()
 
-app = FastAPI(title="Sage AI Mentor API", version="1.0.0")
+app = FastAPI(title="Reflog AI Mentor API", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,

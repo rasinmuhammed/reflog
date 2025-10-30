@@ -35,6 +35,8 @@ interface ChatProps {
   githubUsername: string
 }
 
+
+
 export default function Chat({ githubUsername }: ChatProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
@@ -43,6 +45,15 @@ export default function Chat({ githubUsername }: ChatProps) {
   const [expandedDebateIndex, setExpandedDebateIndex] = useState<number | null>(null)
   const [showRawDeliberation, setShowRawDeliberation] = useState<number | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const cleanAnsi = (text: string): string => {
+  if (!text) return '';
+  
+    const pattern = "[\\u001B\\u009B]\\[[()#;?]*?(?:(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-OR-Zcf-nqry=><])";
+    const ansiRegex = new RegExp(pattern, 'g');
+
+    return text.replace(ansiRegex, '');
+    };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -234,11 +245,10 @@ export default function Chat({ githubUsername }: ChatProps) {
                                 </span>
                               </div>
                               <div className="text-xs">
-                                <MarkdownRenderer
-                                  content={contribution.output}
-                                  className="text-[#FBFAEE]/70 font-mono" // Mono font for raw output
-                                />
-                              </div>
+                                <pre className="text-[#FBFAEE]/70 font-mono whitespace-pre-wrap break-words">
+                                    {cleanAnsi(contribution.output)}
+                                </pre>
+                                </div>
                             </div>
                           ))}
                         </div>

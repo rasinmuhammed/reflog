@@ -13,7 +13,8 @@ import {
   Award,
   X,
   Loader2,
-  Plus // Import Plus if not already imported
+  Plus,
+  AlertTriangle
 } from 'lucide-react'
 import MarkdownRenderer from './MarkdownRenderer' // Ensure MarkdownRenderer uses #FBFAEE text
 

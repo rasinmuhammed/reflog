@@ -5,41 +5,41 @@ import { Brain, Github, Target, TrendingUp, Zap, Shield, Users, ArrowRight, Chec
 import { SignInButton, SignUpButton } from '@clerk/nextjs';
 
 export default function LandingPage() {
-  // Define features with updated descriptions if needed
+  // --- Updated Features with "AI Mentor" Vibe ---
   const features = [
     {
       icon: <Brain className="w-6 h-6" />,
-      title: "Multi-Agent AI Analysis",
-      description: "Specialized AI agents debate your coding patterns and challenges for comprehensive, unbiased insights."
+      title: "Your Personal AI Council", // Changed
+      description: "Specialized AI agents debate *your* challenges and goals to forge a clear path forward." // Changed
     },
     {
       icon: <Github className="w-6 h-6" />,
-      title: "Deep GitHub Integration",
-      description: "Analyzes commit history, repo activity, and code structure to reveal your true development habits."
+      title: "Uncover Your Real Habits", // Changed
+      description: "Analyzes commit history and code structure to show you the patterns you can't see yourself." // Changed
     },
     {
       icon: <Target className="w-6 h-6" />,
       title: "Commitment Tracking",
-      description: "Log daily goals and review outcomes. Reflog holds you accountable, no excuses accepted."
+      description: "Log daily goals and review outcomes. Reflog holds you accountable, no excuses accepted." // Kept as-is, it's perfect
     },
     {
       icon: <TrendingUp className="w-6 h-6" />,
-      title: "Behavioral Pattern Recognition",
-      description: "Identifies cycles of procrastination, 'tutorial hell', and perfectionism blocking your progress."
+      title: "Break Your Bad Cycles", // Changed
+      description: "Identifies cycles of procrastination, 'tutorial hell', and perfectionism blocking your path to mastery." // Changed
     },
     {
       icon: <MessageCircle className="w-6 h-6" />,
       title: "Unfiltered AI Dialogue",
-      description: "Ask tough questions. Get brutally honest, data-driven feedback designed for real growth."
+      description: "Ask tough questions. Get brutally honest, data-driven feedback designed for real growth." // Kept as-is, also perfect
     },
     {
       icon: <BookOpen className="w-6 h-6" />,
-      title: "Decision & Reflection Log",
-      description: "Chronicle key decisions, analyze outcomes with AI, and extract lasting lessons."
+      title: "Decision & Wisdom Log", // Changed
+      description: "Chronicle key decisions, analyze outcomes with your AI mentor, and build a playbook of lasting wisdom." // Changed
     }
   ];
 
-  // Update testimonials to mention "Reflog"
+  // Testimonials are already great, no changes needed
   const testimonials = [
     {
       quote: "Reflog doesn't coddle you. It pointed out my pattern of abandoning projects right before launch. Finally shipped!",
@@ -110,24 +110,24 @@ export default function LandingPage() {
         {/* Hero Content */}
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-20 pb-24 lg:pt-28 lg:pb-32">
           <div className="text-center max-w-4xl mx-auto">
-            {/* Tagline Badge */}
+            {/* Tagline Badge --- Changed --- */}
             <div className="inline-flex items-center space-x-2 bg-[#933DC9]/10 border border-[#933DC9]/30 rounded-full px-4 py-1.5 mb-6 text-sm">
               <Zap className="w-4 h-4 text-[#C488F8]" /> {/* Lighter Orchid */}
-              <span className="font-medium text-[#C488F8]">Honest AI Analysis for Developers</span>
+              <span className="font-medium text-[#C488F8]">AI Mentorship Driven by Your Data</span>
             </div>
 
-            {/* Main Headline */}
+            {/* Main Headline --- Changed --- */}
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold mb-6 leading-tight tracking-tight">
               <span className="bg-gradient-to-r from-[#C488F8] to-[#933DC9] bg-clip-text text-transparent"> {/* Lighter Orchid to Orchid */}
-                Reflect on Your Code.
+                Stop Guessing.
               </span>
               <br />
-              <span className="text-[#FBFAEE]">Actually Improve.</span>
+              <span className="text-[#FBFAEE]">Start Growing.</span>
             </h1>
 
-            {/* Sub-headline */}
+            {/* Sub-headline --- Changed --- */}
             <p className="text-lg lg:text-xl text-[#FBFAEE]/80 mb-10 max-w-3xl mx-auto leading-relaxed">
-              Reflog analyzes your Git history and daily progress to give brutally honest AI feedback. Stop guessing, start shipping consistently.
+              Reflog is your personal AI mentor. It analyzes your Git history and daily progress to give the brutally honest, data-driven feedback you need to master your craft.
             </p>
 
             {/* CTA Buttons */}
@@ -138,10 +138,6 @@ export default function LandingPage() {
                   <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
                 </button>
               </SignUpButton>
-              {/* Optional secondary button */}
-              {/* <button className="w-full sm:w-auto bg-[#242424] text-[#FBFAEE] px-7 py-3 rounded-lg text-base font-semibold hover:bg-[#242424]/80 transition border border-[#242424]/60">
-                How it Works
-              </button> */}
             </div>
 
             {/* Trust Badges */}
@@ -166,15 +162,16 @@ export default function LandingPage() {
       {/* Features Section */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="text-center mb-12 lg:mb-16">
+          {/* --- Changed --- */}
           <h2 className="text-3xl lg:text-4xl font-bold text-[#FBFAEE] mb-3">
-            Beyond Generic Advice
+            A Mentor That Understands Your Code
           </h2>
           <p className="text-lg text-[#FBFAEE]/70 max-w-2xl mx-auto">
-            Reflog digs into *your* data to provide insights you won't get anywhere else.
+            Reflog digs into *your* data to provide guidance you won't get anywhere else.
           </p>
         </div>
 
-        {/* Features Grid */}
+        {/* Features Grid (Uses the updated 'features' array from above) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8">
           {features.map((feature, index) => (
             <div
@@ -197,17 +194,18 @@ export default function LandingPage() {
       {/* How It Works Section - Simplified */}
       <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="text-center mb-12 lg:mb-16">
+           {/* --- Changed --- */}
           <h2 className="text-3xl lg:text-4xl font-bold text-[#FBFAEE] mb-3">
-            Simple Steps to Real Progress
+            Your Journey to Mastery
           </h2>
            <p className="text-lg text-[#FBFAEE]/70 max-w-xl mx-auto">
-            Connect, reflect, commit, and ship. Reflog guides you through the process.
+            Connect, reflect, commit, and ship. Your AI mentor guides you through the process.
           </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 text-center">
           {[
             { step: "1", title: "Connect GitHub", description: "Securely link your account for analysis." },
-            { step: "2", title: "Review Insights", description: "Understand AI-driven feedback on your patterns." },
+            { step: "2", title: "Receive Guidance", description: "Understand AI-driven feedback on your patterns." }, // Changed
             { step: "3", title: "Set Daily Goals", description: "Commit to specific, shippable tasks." },
             { step: "4", title: "Track & Iterate", description: "Review outcomes, log decisions, repeat." }
           ].map((item) => (
@@ -226,11 +224,12 @@ export default function LandingPage() {
       {/* Testimonials Section */}
       <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24">
         <div className="text-center mb-12 lg:mb-16">
+          {/* --- Changed --- */}
           <h2 className="text-3xl lg:text-4xl font-bold text-[#FBFAEE] mb-3">
-            What Developers Are Saying
+            Don't Just Take Our Word For It
           </h2>
           <p className="text-lg text-[#FBFAEE]/70 max-w-2xl mx-auto">
-            Real feedback from developers breaking through their blocks with Reflog.
+            Real feedback from developers building better habits with their AI mentor.
           </p>
         </div>
 
@@ -259,11 +258,12 @@ export default function LandingPage() {
            {/* Subtle pattern */}
            <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#FBFAEE_1px,transparent_1px)] [background-size:16px_16px]"></div>
           <div className="relative z-10">
+            {/* --- Changed --- */}
             <h2 className="text-3xl lg:text-4xl font-bold text-[#FBFAEE] mb-3">
-              Ready to See Your Code Honestly?
+              Ready to Meet Your Mentor?
             </h2>
             <p className="text-base lg:text-lg text-[#FBFAEE]/80 mb-8 max-w-xl mx-auto">
-              Start your free trial. Connect GitHub, get your first analysis, and begin the journey to consistent shipping.
+              Start your free trial. Connect GitHub, get your first analysis, and begin your journey to mastery.
             </p>
             <SignUpButton mode="modal">
               <button className="bg-[#FBFAEE] text-[#53118F] px-8 py-3 rounded-lg text-base font-bold hover:bg-[#FBFAEE]/90 transition shadow-lg transform hover:scale-105 duration-200">
@@ -284,11 +284,9 @@ export default function LandingPage() {
             </div>
             <span className="text-lg font-semibold text-[#FBFAEE]">Reflog</span>
           </div>
-          {/* Copyright */}
+          {/* Copyright - You already had "AI Mentor" here, which is perfect! */}
           <div className="text-[#FBFAEE]/60 text-xs text-center sm:text-right">
              © {new Date().getFullYear()} Reflog AI Mentor. Reflect. Improve. Ship.
-            {/* Optional: Add links */}
-            {/* <br /> <a href="#" className="hover:text-[#FBFAEE]/80">Privacy Policy</a> | <a href="#" className="hover:text-[#FBFAEE]/80">Terms of Service</a> */}
           </div>
         </div>
       </footer>
