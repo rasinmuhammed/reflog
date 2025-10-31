@@ -1811,7 +1811,28 @@ def update_task_status(
     
     return {"message": "Task updated successfully", "task": task}
 
-
+@app.get("/insights/{github_username}/weekly")
+def get_weekly_insights(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get weekly insights and recommendations"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    engine = ProactiveInsightsEngine()
+    insights = engine.analyze_weekly_patterns(user.id, db)
+    report = engine.generate_weekly_report(user.id, db)
+    
+    return {
+        "metrics": insights,
+        "report": report,
+        "generated_at": datetime.utcnow().isoformat()
+    }
 
 if __name__ == "__main__":
     import uvicorn
