@@ -125,13 +125,7 @@ This is actively developed based on a real need. Your feedback is crucial.
 
 ## 📜 License
 
-MIT License - see [LICENSE.md](LICENSE.md).
-
-## 🙏 Acknowledgments
-
-* **CrewAI, Groq, FastAPI, Next.js:** The tech enabling this.
-* **GitHub API:** The source of truth.
-
+MIT License - see [LICENSE.md]
 ## 🚨 Expect Honesty
 
 Reflog prioritizes objective, data-driven feedback over feel-good validation. It's built to challenge and provoke reflection. Be prepared for insights that might be uncomfortable but ultimately constructive.
