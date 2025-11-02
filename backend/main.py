@@ -7,7 +7,8 @@ from database import engine, get_db, init_db
 from models import (
     UserCreate, UserResponse, CheckInCreate, CheckInUpdate, CheckInResponse,
     AgentAdviceResponse, GitHubAnalysisResponse, ChatMessage,
-    LifeDecisionCreate, LifeDecisionResponse, GoalsDashboardResponse
+    LifeDecisionCreate, LifeDecisionResponse, GoalsDashboardResponse,
+    NotificationResponse, NotificationStats
 )
 from github_integration import GitHubAnalyzer
 from crew import SageMentorCrew
@@ -15,6 +16,7 @@ from datetime import datetime, timedelta
 from pydantic import BaseModel
 from datetime import datetime, timedelta, time
 from typing import Optional
+from notification_service import NotificationService
 
 init_db()
 
@@ -1833,6 +1835,186 @@ def get_weekly_insights(
         "report": report,
         "generated_at": datetime.utcnow().isoformat()
     }
+
+@app.get("/notifications/{github_username}", response_model=List[NotificationResponse])
+def get_notifications(
+    github_username: str,
+    unread_only: bool = False,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Get notifications for a user"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    query = db.query(models.Notification).filter(
+        models.Notification.user_id == user.id
+    )
+    
+    if unread_only:
+        query = query.filter(models.Notification.read == False)
+    
+    notifications = query.order_by(
+        models.Notification.created_at.desc()
+    ).limit(limit).all()
+    
+    # Convert to response format with metadata mapped from extra_data
+    return [
+        models.NotificationResponse.from_orm(n) for n in notifications
+    ]
+
+
+@app.get("/notifications/{github_username}/stats", response_model=NotificationStats)
+def get_notification_stats(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get notification statistics"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Total notifications
+    total = db.query(models.Notification).filter(
+        models.Notification.user_id == user.id
+    ).count()
+    
+    # Unread notifications
+    unread = db.query(models.Notification).filter(
+        models.Notification.user_id == user.id,
+        models.Notification.read == False
+    ).count()
+    
+    # By type
+    all_notifications = db.query(models.Notification).filter(
+        models.Notification.user_id == user.id
+    ).all()
+    
+    by_type = {}
+    for notif in all_notifications:
+        by_type[notif.notification_type] = by_type.get(notif.notification_type, 0) + 1
+    
+    # Recent (last 24 hours)
+    day_ago = datetime.utcnow() - timedelta(days=1)
+    recent_count = db.query(models.Notification).filter(
+        models.Notification.user_id == user.id,
+        models.Notification.created_at >= day_ago
+    ).count()
+    
+    return {
+        "total": total,
+        "unread": unread,
+        "by_type": by_type,
+        "recent_count": recent_count
+    }
+
+
+@app.patch("/notifications/{github_username}/{notification_id}/read")
+def mark_notification_read(
+    github_username: str,
+    notification_id: int,
+    db: Session = Depends(get_db)
+):
+    """Mark a notification as read"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == user.id
+    ).first()
+    
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    notification.read = True
+    notification.read_at = datetime.utcnow()
+    db.commit()
+    
+    return {"message": "Notification marked as read"}
+
+
+@app.post("/notifications/{github_username}/mark-all-read")
+def mark_all_notifications_read(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Mark all notifications as read"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    db.query(models.Notification).filter(
+        models.Notification.user_id == user.id,
+        models.Notification.read == False
+    ).update({
+        "read": True,
+        "read_at": datetime.utcnow()
+    })
+    
+    db.commit()
+    
+    return {"message": "All notifications marked as read"}
+
+
+@app.delete("/notifications/{github_username}/{notification_id}")
+def delete_notification(
+    github_username: str,
+    notification_id: int,
+    db: Session = Depends(get_db)
+):
+    """Delete a notification"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    notification = db.query(models.Notification).filter(
+        models.Notification.id == notification_id,
+        models.Notification.user_id == user.id
+    ).first()
+    
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    
+    db.delete(notification)
+    db.commit()
+    
+    return {"message": "Notification deleted"}
+
+
+@app.post("/notifications/{github_username}/check")
+def check_and_create_notifications(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Manually trigger notification checks (useful for testing or manual refresh)"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    NotificationService.run_all_checks(db, user.id)
+    
+    return {"message": "Notification checks completed"}
 
 if __name__ == "__main__":
     import uvicorn

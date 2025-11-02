@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { UserButton } from '@clerk/nextjs'
 import axios from 'axios'
-import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, X, History, Eye, Calendar as CalendarIcon, ArrowRight } from 'lucide-react'
+import { Github, Brain, Target, TrendingUp, AlertCircle, CheckCircle, MessageCircle, BookOpen, Menu, Bell, X, History, Eye, Calendar as CalendarIcon, ArrowRight } from 'lucide-react'
 import CheckInModal from './CheckInModal' 
 import AgentInsights from './AgentInsights' 
 import Chat from './Chat' 
@@ -13,6 +13,8 @@ import MarkdownRenderer from './MarkdownRenderer'
 import CommitmentTracker from './CommitmentTracker' 
 import NotificationBanner from './NotificationBanner' 
 import CommitmentCalendar from './CommitmentCalendar'
+import NotificationBell from './NotificationBell'
+import Notifications from './Notifications'
 import Goals from './Goals' 
 
 // Assuming API_URL is defined elsewhere or replace with actual URL
@@ -52,7 +54,7 @@ interface DashboardData {
   }>
 }
 
-type TabType = 'overview' | 'chat' | 'commitments' | 'goals'| 'decisions' | 'history'
+type TabType = 'overview' | 'chat' | 'commitments' | 'goals'| 'decisions' | 'history' | 'notifications'
 
 export default function Dashboard({ githubUsername }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -66,6 +68,23 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
   useEffect(() => {
     loadDashboard()
   }, [githubUsername, refreshKey])
+
+  useEffect(() => {
+  // Check for notifications when dashboard loads
+  const checkNotifications = async () => {
+    try {
+      await axios.post(`${API_URL}/notifications/${githubUsername}/check`)
+    } catch (error) {
+      console.error('Failed to check notifications:', error)
+    }
+  }
+  
+  checkNotifications()
+  
+  // Check every 5 minutes
+  const interval = setInterval(checkNotifications, 5 * 60 * 1000)
+  return () => clearInterval(interval)
+}, [githubUsername])
 
   const loadDashboard = async () => {
     setLoading(true);
@@ -131,7 +150,8 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
     { id: 'commitments', label: 'Commitments', icon: CalendarIcon },
     { id: 'goals', label: 'Goals', icon: Target },
     { id: 'decisions', label: 'Decisions', icon: BookOpen },
-    { id: 'history', label: 'History', icon: History }
+    { id: 'history', label: 'History', icon: History },
+    { id: 'notifications', label: 'Notifications', icon: Bell }
   ];
 
   return (
@@ -194,6 +214,9 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
               </button>
 
               <div className="flex items-center space-x-2">
+
+                <NotificationBell githubUsername={githubUsername} />
+
                 <UserButton
                   afterSignOutUrl="/"
                   appearance={{
@@ -542,6 +565,12 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
         {activeTab === 'history' && (
           <div className="max-w-5xl mx-auto">
             <InteractionHistory githubUsername={githubUsername} />
+          </div>
+        )}
+
+        {activeTab === 'notifications' && (
+          <div className="max-w-6xl mx-auto">
+            <Notifications githubUsername={githubUsername} />
           </div>
         )}
       </main>

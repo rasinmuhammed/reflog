@@ -72,6 +72,83 @@ class LifeEvent(Base):
     time_horizon = Column(String(50), nullable=True)
     outcome = Column(Text, nullable=True)
 
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    title = Column(String(500))
+    message = Column(Text)
+    notification_type = Column(String(50))  # commitment_reminder, goal_milestone, decision_reflection, pattern_alert, achievement
+    priority = Column(String(20), default="normal")  # low, normal, high, urgent
+    read = Column(Boolean, default=False)
+    action_url = Column(String(500), nullable=True)  # Optional link to relevant page
+    metadata = Column(JSON, nullable=True)  # Extra data like checkin_id, goal_id, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+
+# Pydantic Schemas - Add after existing schemas
+class Notification(Base):
+    __tablename__ = "notifications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, index=True)
+    title = Column(String(500))
+    message = Column(Text)
+    notification_type = Column(String(50))  # commitment_reminder, goal_milestone, decision_reflection, pattern_alert, achievement
+    priority = Column(String(20), default="normal")  # low, normal, high, urgent
+    read = Column(Boolean, default=False)
+    action_url = Column(String(500), nullable=True)  # Optional link to relevant page
+    extra_data = Column(JSON, nullable=True)  # Changed from 'metadata' - Extra data like checkin_id, goal_id, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    read_at = Column(DateTime, nullable=True)
+
+# Pydantic Schemas - Add after existing schemas
+class NotificationResponse(BaseModel):
+    id: int
+    title: str
+    message: str
+    notification_type: str
+    priority: str
+    read: bool
+    action_url: Optional[str]
+    extra_data: Optional[Dict]  # Will map to extra_data in DB
+    created_at: datetime
+    read_at: Optional[datetime]
+    
+    @classmethod
+    def from_orm(cls, obj):
+        # Custom mapping for the metadata field
+        return cls(
+            id=obj.id,
+            title=obj.title,
+            message=obj.message,
+            notification_type=obj.notification_type,
+            priority=obj.priority,
+            read=obj.read,
+            action_url=obj.action_url,
+            metadata=obj.extra_data,  
+            created_at=obj.created_at,
+            read_at=obj.read_at
+        )
+    
+    class Config:
+        from_attributes = True
+
+class NotificationCreate(BaseModel):
+    title: str
+    message: str
+    notification_type: str
+    priority: str = "normal"
+    action_url: Optional[str] = None
+    metadata: Optional[Dict] = None
+
+class NotificationStats(BaseModel):
+    total: int
+    unread: int
+    by_type: Dict[str, int]
+    recent_count: int  # Last 24 hours
+
 # NEW: Goals System
 class Goal(Base):
     __tablename__ = "goals"
