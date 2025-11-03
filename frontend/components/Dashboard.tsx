@@ -15,7 +15,9 @@ import NotificationBanner from './NotificationBanner'
 import CommitmentCalendar from './CommitmentCalendar'
 import NotificationBell from './NotificationBell'
 import Notifications from './Notifications'
-import Goals from './Goals' 
+import Goals from './Goals'
+import DashboardOverview from './DashboardOverview'
+import { EnhancedProgressModal } from './EnhancedProgressModal' 
 
 // Assuming API_URL is defined elsewhere or replace with actual URL
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
@@ -281,6 +283,17 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
       {/* --- Main Content --- */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {activeTab === 'overview' && (
+          <>
+          <DashboardOverview
+            githubUsername={githubUsername}
+            data={data}
+            onCheckIn={() => setShowCheckin(true)}
+            onReviewCommitment={() => {
+              setActiveTab('commitments')
+            }}
+            onViewGoals={() => setActiveTab('goals')}
+            onChat={() => setActiveTab('chat')}
+          />
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             {/* Left Column */}
             <div className="lg:col-span-1 space-y-6">
@@ -531,6 +544,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
               <AgentInsights advice={data.recent_advice} />
             </div>
           </div>
+          </>
         )}
 
         {/* --- Other Tab Content Placeholders --- */}

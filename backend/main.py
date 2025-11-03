@@ -2016,6 +2016,55 @@ def check_and_create_notifications(
     
     return {"message": "Notification checks completed"}
 
+@app.get("/commitments/{github_username}/stats/comparison")
+def get_stats_comparison(
+    github_username: str,
+    days: int = 7,
+    db: Session = Depends(get_db)
+):
+    """Get current and previous period stats for comparison"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Current period
+    current_start = datetime.now() - timedelta(days=days)
+    current_checkins = db.query(models.CheckIn).filter(
+        models.CheckIn.user_id == user.id,
+        models.CheckIn.timestamp >= current_start,
+        models.CheckIn.shipped != None
+    ).all()
+    
+    # Previous period
+    previous_start = datetime.now() - timedelta(days=days * 2)
+    previous_end = current_start
+    previous_checkins = db.query(models.CheckIn).filter(
+        models.CheckIn.user_id == user.id,
+        models.CheckIn.timestamp >= previous_start,
+        models.CheckIn.timestamp < previous_end,
+        models.CheckIn.shipped != None
+    ).all()
+    
+    def calculate_stats(checkins):
+        if not checkins:
+            return {"success_rate": 0, "avg_energy": 0, "total": 0}
+        
+        shipped = sum(1 for c in checkins if c.shipped)
+        return {
+            "success_rate": (shipped / len(checkins) * 100) if checkins else 0,
+            "avg_energy": sum(c.energy_level for c in checkins) / len(checkins) if checkins else 0,
+            "total": len(checkins)
+        }
+    
+    return {
+        "current": calculate_stats(current_checkins),
+        "previous": calculate_stats(previous_checkins),
+        "period_days": days
+    }
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
