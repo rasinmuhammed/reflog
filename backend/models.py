@@ -72,20 +72,6 @@ class LifeEvent(Base):
     time_horizon = Column(String(50), nullable=True)
     outcome = Column(Text, nullable=True)
 
-class Notification(Base):
-    __tablename__ = "notifications"
-    
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
-    title = Column(String(500))
-    message = Column(Text)
-    notification_type = Column(String(50))  # commitment_reminder, goal_milestone, decision_reflection, pattern_alert, achievement
-    priority = Column(String(20), default="normal")  # low, normal, high, urgent
-    read = Column(Boolean, default=False)
-    action_url = Column(String(500), nullable=True)  # Optional link to relevant page
-    metadata = Column(JSON, nullable=True)  # Extra data like checkin_id, goal_id, etc.
-    created_at = Column(DateTime, default=datetime.utcnow)
-    read_at = Column(DateTime, nullable=True)
 
 # Pydantic Schemas - Add after existing schemas
 class Notification(Base):
