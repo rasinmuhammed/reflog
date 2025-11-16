@@ -62,6 +62,26 @@ interface DashboardData {
 
 type TabType = 'overview' | 'chat' | 'commitments' |'action-plans' | 'goals' | 'decisions' | 'history' | 'notifications' 
 
+function DashboardSkeleton() {
+  return (
+    <div className="animate-pulse space-y-6">
+      {/* Header Skeleton */}
+      <div className="h-20 bg-[#242424]/50 rounded-2xl"></div>
+      
+      {/* Stats Grid Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 space-y-6">
+          <div className="h-64 bg-[#242424]/50 rounded-2xl"></div>
+          <div className="h-48 bg-[#242424]/50 rounded-2xl"></div>
+        </div>
+        <div className="lg:col-span-2">
+          <div className="h-96 bg-[#242424]/50 rounded-2xl"></div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Dashboard({ githubUsername }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -120,38 +140,6 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
     setRefreshKey(prev => prev + 1)
   }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[#000000] text-[#FBFAEE] flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-[#933DC9] mx-auto mb-6"></div>
-            <div className="absolute inset-0 flex items-center justify-center">
-              <Brain className="w-8 h-8 text-[#933DC9]" />
-            </div>
-          </div>
-          <p className="text-[#FBFAEE]/80 text-lg">Loading your dashboard...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!data) {
-    return (
-      <div className="min-h-screen bg-[#000000] text-[#FBFAEE] flex items-center justify-center p-4">
-        <div className="text-center bg-red-900/30 border border-red-500/40 rounded-2xl p-8 max-w-md w-full">
-          <AlertCircle className="w-16 h-16 text-red-400 mx-auto mb-4" />
-          <p className="text-red-300 text-lg mb-4">Failed to load dashboard data.</p>
-          <button
-            onClick={loadDashboard}
-            className="mt-4 px-6 py-2 bg-[#933DC9] text-[#FBFAEE] rounded-lg hover:bg-[#7d34ad] transition font-semibold"
-          >
-            Retry
-          </button>
-        </div>
-      </div>
-    )
-  }
 
   const activePercentage = data.github.total_repos > 0
     ? (data.github.active_repos / data.github.total_repos * 100).toFixed(0)
@@ -167,6 +155,23 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
     { id: 'history', label: 'History', icon: History },
     { id: 'notifications', label: 'Notifications', icon: Bell }
   ];
+
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-[#000000] text-[#FBFAEE]">
+        <NotificationBanner
+          githubUsername={githubUsername}
+          onReviewClick={() => setActiveTab('commitments')}
+        />
+        <header className="bg-[#000000]/80 border-b border-[#242424]/50 sticky top-0 z-40 backdrop-blur-lg">
+          {/* ... header content ... */}
+        </header>
+        <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <DashboardSkeleton />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-[#000000] text-[#FBFAEE]">

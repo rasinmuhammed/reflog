@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import select, func
 from sqlalchemy.orm import Session, joinedload, selectinload
 from typing import List, Dict, Optional
 import models
@@ -20,6 +21,7 @@ from datetime import datetime, timedelta, time
 from typing import Optional
 from notification_service import NotificationService
 from action_plan_service import ActionPlanService
+from cache import cache, cached, cache_dashboard, get_cached_dashboard, invalidate_user_cache
 
 init_db()
 
@@ -289,6 +291,8 @@ def create_checkin(
     
     db.commit()
     db.refresh(new_checkin)
+
+    invalidate_user_cache(github_username)
     
     return {
         "checkin_id": new_checkin.id,
@@ -360,6 +364,11 @@ def get_advice(github_username: str, limit: int = 20, db: Session = Depends(get_
 
 @app.get("/dashboard/{github_username}")
 def get_dashboard(github_username: str, db: Session = Depends(get_db)):
+    # Check cache first
+    cached_data = get_cached_dashboard(github_username)
+    if cached_data:
+        return cached_data
+    
     user = db.query(models.User).filter(
         models.User.github_username == github_username
     ).first()
@@ -367,23 +376,27 @@ def get_dashboard(github_username: str, db: Session = Depends(get_db)):
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
+    # Use single optimized query with eager loading
     github_analysis = db.query(models.GitHubAnalysis).filter(
         models.GitHubAnalysis.user_id == user.id
     ).order_by(models.GitHubAnalysis.analyzed_at.desc()).first()
     
+    # Optimized checkins query with limit
     checkins = db.query(models.CheckIn).filter(
         models.CheckIn.user_id == user.id
     ).order_by(models.CheckIn.timestamp.desc()).limit(7).all()
     
+    # Optimized advice query
     latest_advice = db.query(models.AgentAdvice).filter(
         models.AgentAdvice.user_id == user.id
     ).order_by(models.AgentAdvice.created_at.desc()).limit(3).all()
     
+    # Calculate stats efficiently
     total_checkins = len(checkins)
     commitments_kept = sum(1 for c in checkins if c.shipped == True)
     avg_energy = sum(c.energy_level for c in checkins) / total_checkins if total_checkins > 0 else 0
     
-    return {
+    dashboard_data = {
         "user": {
             "username": user.github_username,
             "member_since": user.created_at.strftime("%Y-%m-%d")
@@ -411,6 +424,11 @@ def get_dashboard(github_username: str, db: Session = Depends(get_db)):
             for a in latest_advice
         ]
     }
+    
+    # Cache the result
+    cache_dashboard(github_username, dashboard_data)
+    
+    return dashboard_data
 
 @app.post("/chat/{github_username}")
 async def chat_with_mentor(

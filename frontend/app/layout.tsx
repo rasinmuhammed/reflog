@@ -2,10 +2,11 @@ import type { Metadata } from 'next'
 import { ClerkProvider } from '@clerk/nextjs'
 import { dark } from '@clerk/themes'
 import './globals.css'
+import { ErrorBoundary, ToastProvider } from '@/components/ErrorBoundary'
 
 export const metadata: Metadata = {
-  title: 'Sage - Your Brutally Honest AI Mentor',
-  description: 'AI mentor that calls out your BS and helps you actually ship',
+  title: 'Reflog - Your AI Mentor',
+  description: 'AI mentor that provides brutally honest, data-driven feedback',
 }
 
 export default function RootLayout({
@@ -18,25 +19,28 @@ export default function RootLayout({
       appearance={{
         baseTheme: dark,
         variables: {
-          colorPrimary: '#3b82f6',
-          colorBackground: '#111827',
-          colorInputBackground: '#1f2937',
-          colorInputText: '#f9fafb',
+          colorPrimary: '#933DC9',
+          colorBackground: '#000000',
+          colorInputBackground: '#242424',
+          colorInputText: '#FBFAEE',
         },
         elements: {
           formButtonPrimary: 
-            'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700',
-          card: 'bg-gradient-to-br from-gray-900 via-gray-800 to-gray-900 border border-gray-700',
-          headerTitle: 'text-white',
-          headerSubtitle: 'text-gray-400',
-          socialButtonsBlockButton: 'bg-gray-800 border-gray-700 hover:bg-gray-700',
-          formFieldInput: 'bg-gray-800 border-gray-700 text-white',
-          footerActionLink: 'text-blue-400 hover:text-blue-300',
+            'bg-gradient-to-r from-[#933DC9] to-[#53118F] hover:brightness-110',
+          card: 'bg-[#242424] border border-[#242424]/60',
+          headerTitle: 'text-[#FBFAEE]',
+          headerSubtitle: 'text-[#FBFAEE]/70',
         },
       }}
     >
       <html lang="en">
-        <body>{children}</body>
+        <body>
+          <ErrorBoundary>
+            <ToastProvider>
+              {children}
+            </ToastProvider>
+          </ErrorBoundary>
+        </body>
       </html>
     </ClerkProvider>
   )

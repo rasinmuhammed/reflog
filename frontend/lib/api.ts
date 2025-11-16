@@ -3,19 +3,67 @@ import { toast } from '@/components/Toast'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
-// Axios instance with interceptors
+// Simple in-memory cache with TTL
+class RequestCache {
+  private cache = new Map<string, { data: any; timestamp: number; ttl: number }>()
+  
+  set(key: string, data: any, ttl: number = 5 * 60 * 1000) {
+    this.cache.set(key, { data, timestamp: Date.now(), ttl })
+  }
+  
+  get(key: string) {
+    const cached = this.cache.get(key)
+    if (!cached) return null
+    
+    if (Date.now() - cached.timestamp > cached.ttl) {
+      this.cache.delete(key)
+      return null
+    }
+    
+    return cached.data
+  }
+  
+  invalidate(pattern: string) {
+    for (const key of this.cache.keys()) {
+      if (key.includes(pattern)) {
+        this.cache.delete(key)
+      }
+    }
+  }
+  
+  clear() {
+    this.cache.clear()
+  }
+}
+
+const requestCache = new RequestCache()
+
+// Axios instance with caching
 const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000, // 30 seconds
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json'
   }
 })
 
-// Request interceptor
+// Request interceptor with caching
 api.interceptors.request.use(
   (config) => {
-    // Add auth token if available
+    // Check cache for GET requests
+    if (config.method === 'get') {
+      const cacheKey = `${config.url}${JSON.stringify(config.params || {})}`
+      const cached = requestCache.get(cacheKey)
+      if (cached) {
+        // Return cached response
+        return Promise.reject({ 
+          __cached: true, 
+          data: cached,
+          config
+        })
+      }
+    }
+    
     const token = localStorage.getItem('auth_token')
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -25,26 +73,47 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Response interceptor
+// Response interceptor with caching
 api.interceptors.response.use(
-  (response) => response,
-  async (error: AxiosError) => {
+  (response) => {
+    // Cache successful GET requests
+    if (response.config.method === 'get') {
+      const cacheKey = `${response.config.url}${JSON.stringify(response.config.params || {})}`
+      // Cache for 5 minutes by default, 1 minute for dashboard/stats
+      const ttl = response.config.url?.includes('dashboard') || response.config.url?.includes('stats') 
+        ? 60 * 1000 
+        : 5 * 60 * 1000
+      requestCache.set(cacheKey, response.data, ttl)
+    }
+    
+    // Invalidate related cache on mutations
+    if (['post', 'put', 'patch', 'delete'].includes(response.config.method || '')) {
+      const url = response.config.url || ''
+      if (url.includes('checkins')) requestCache.invalidate('checkins')
+      if (url.includes('goals')) requestCache.invalidate('goals')
+      if (url.includes('commitments')) requestCache.invalidate('commitments')
+    }
+    
+    return response
+  },
+  async (error: any) => {
+    // Handle cached responses
+    if (error.__cached) {
+      return Promise.resolve({ data: error.data, config: error.config })
+    }
+    
     const originalRequest = error.config as AxiosRequestConfig & { _retry?: boolean }
 
-    // Handle network errors
     if (!error.response) {
       toast.error('Network Error', 'Please check your internet connection')
       return Promise.reject(error)
     }
 
-    // Handle specific status codes
     const { status } = error.response
 
     switch (status) {
       case 401:
-        // Unauthorized - redirect to login
         toast.error('Session Expired', 'Please sign in again')
-        // Clear local storage and redirect
         localStorage.clear()
         window.location.href = '/sign-in'
         break
@@ -58,7 +127,6 @@ api.interceptors.response.use(
         break
 
       case 429:
-        // Rate limit - retry after delay
         if (!originalRequest._retry) {
           originalRequest._retry = true
           await new Promise(resolve => setTimeout(resolve, 2000))
@@ -82,25 +150,19 @@ api.interceptors.response.use(
   }
 )
 
-// Retry helper with exponential backoff
-async function retryRequest<T>(
-  fn: () => Promise<T>,
-  retries = 3,
-  delay = 1000
-): Promise<T> {
-  try {
-    return await fn()
-  } catch (error) {
-    if (retries === 0) throw error
-    
-    await new Promise(resolve => setTimeout(resolve, delay))
-    return retryRequest(fn, retries - 1, delay * 2)
-  }
+// Export cache control
+export const cacheControl = {
+  clear: () => requestCache.clear(),
+  invalidate: (pattern: string) => requestCache.invalidate(pattern)
 }
 
-// API methods with proper typing
+
 export const apiService = {
-  // User endpoints
+
+  batch: async (requests: Array<() => Promise<any>>) => {
+    return Promise.all(requests.map(req => req().catch(e => ({ error: e }))))
+  },
+  
   user: {
     create: (data: { github_username: string; email?: string }) =>
       api.post('/users', data),
@@ -112,16 +174,14 @@ export const apiService = {
       api.patch(`/users/${githubUsername}/complete-onboarding`)
   },
 
-  // GitHub endpoints
   github: {
     analyze: (githubUsername: string) =>
-      retryRequest(() => api.post(`/analyze-github/${githubUsername}`)),
+      api.post(`/analyze-github/${githubUsername}`),
     
     getAnalysis: (githubUsername: string) =>
       api.get(`/github-analysis/${githubUsername}`)
   },
 
-  // Check-in endpoints
   checkins: {
     create: (githubUsername: string, data: {
       energy_level: number
@@ -139,7 +199,6 @@ export const apiService = {
     }) => api.patch(`/checkins/${checkinId}/evening`, data)
   },
 
-  // Commitment endpoints
   commitments: {
     getToday: (githubUsername: string) =>
       api.get(`/commitments/${githubUsername}/today`),
@@ -159,13 +218,11 @@ export const apiService = {
       api.get(`/commitments/${githubUsername}/reminder-needed`)
   },
 
-  // Chat endpoint
   chat: (githubUsername: string, data: {
     message: string
     context?: any
   }) => api.post(`/chat/${githubUsername}`, data),
 
-  // Goals endpoints
   goals: {
     create: (githubUsername: string, data: any) =>
       api.post(`/goals/${githubUsername}`, data),
@@ -193,7 +250,6 @@ export const apiService = {
       api.get(`/goals/${githubUsername}/dashboard`)
   },
 
-  // Life decisions endpoints
   decisions: {
     create: (githubUsername: string, data: any) =>
       api.post(`/life-decisions/${githubUsername}`, data),
@@ -208,11 +264,9 @@ export const apiService = {
       api.post(`/life-decisions/${githubUsername}/${decisionId}/reanalyze`)
   },
 
-  // Dashboard endpoint
   dashboard: (githubUsername: string) =>
     api.get(`/dashboard/${githubUsername}`),
 
-  // Advice/History endpoint
   advice: (githubUsername: string, limit = 50) =>
     api.get(`/advice/${githubUsername}?limit=${limit}`)
 }
