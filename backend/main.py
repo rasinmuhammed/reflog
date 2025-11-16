@@ -8,7 +8,9 @@ from models import (
     UserCreate, UserResponse, CheckInCreate, CheckInUpdate, CheckInResponse,
     AgentAdviceResponse, GitHubAnalysisResponse, ChatMessage,
     LifeDecisionCreate, LifeDecisionResponse, GoalsDashboardResponse,
-    NotificationResponse, NotificationStats
+    NotificationResponse, NotificationStats,
+    ActionPlanCreate, DailyTaskResponse, ActionPlanResponse, DailyTaskCreate, SkillFocusCreate, SkillFocusResponse,
+    DailyTaskUpdate, SkillReminderResponse, SkillReminderCreate
 )
 from github_integration import GitHubAnalyzer
 from crew import SageMentorCrew
@@ -17,6 +19,7 @@ from pydantic import BaseModel
 from datetime import datetime, timedelta, time
 from typing import Optional
 from notification_service import NotificationService
+from action_plan_service import ActionPlanService
 
 init_db()
 
@@ -36,6 +39,7 @@ app.add_middleware(
 
 github_analyzer = GitHubAnalyzer()
 sage_crew = SageMentorCrew()
+action_plan_service = ActionPlanService()
 
 @app.get("/")
 def read_root():
@@ -2064,6 +2068,464 @@ def get_stats_comparison(
         "previous": calculate_stats(previous_checkins),
         "period_days": days
     }
+
+# ==================== ACTION PLANS ====================
+
+@app.post("/action-plans/{github_username}", response_model=ActionPlanResponse)
+async def create_action_plan(
+    github_username: str,
+    plan: ActionPlanCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a new 30-day action plan with AI"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Get user context for AI
+    github_analysis = db.query(models.GitHubAnalysis).filter(
+        models.GitHubAnalysis.user_id == user.id
+    ).order_by(models.GitHubAnalysis.analyzed_at.desc()).first()
+    
+    recent_checkins = db.query(models.CheckIn).filter(
+        models.CheckIn.user_id == user.id,
+        models.CheckIn.shipped != None
+    ).order_by(models.CheckIn.timestamp.desc()).limit(30).all()
+    
+    user_context = {
+        'github_stats': {
+            'total_repos': github_analysis.total_repos if github_analysis else 0,
+            'active_repos': github_analysis.active_repos if github_analysis else 0,
+            'languages': github_analysis.languages if github_analysis else {}
+        },
+        'recent_performance': {
+            'success_rate': (sum(1 for c in recent_checkins if c.shipped) / len(recent_checkins) * 100) if recent_checkins else 0,
+            'avg_energy': sum(c.energy_level for c in recent_checkins) / len(recent_checkins) if recent_checkins else 0
+        }
+    }
+    
+    print(f"🚀 Generating 30-day plan for {plan.focus_area}...")
+    
+    # Generate plan with AI
+    try:
+        ai_result = action_plan_service.generate_30_day_plan(
+            user_context=user_context,
+            focus_area=plan.focus_area,
+            skills_to_learn=plan.skills_to_learn,
+            skill_level=plan.current_skill_level,
+            hours_per_day=plan.available_hours_per_day
+        )
+        
+        # Create action plan
+        end_date = plan.end_date or (datetime.utcnow() + timedelta(days=30))
+        new_plan = models.ActionPlan(
+            user_id=user.id,
+            title=plan.title,
+            description=plan.description,
+            plan_type=plan.plan_type,
+            focus_area=plan.focus_area,
+            end_date=end_date,
+            ai_analysis=ai_result['analysis'],
+            skills_to_focus={"skills": ai_result['skills_to_focus']},
+            milestones=ai_result['milestones']
+        )
+        db.add(new_plan)
+        db.commit()
+        db.refresh(new_plan)
+        
+        # Create daily tasks
+        for task_data in ai_result['daily_tasks']:
+            task = models.DailyTask(
+                action_plan_id=new_plan.id,
+                day_number=task_data['day_number'],
+                date=new_plan.start_date + timedelta(days=task_data['day_number'] - 1),
+                title=task_data['title'],
+                description=task_data['description'],
+                task_type=task_data['task_type'],
+                difficulty=task_data['difficulty'],
+                estimated_time=task_data['estimated_time']
+            )
+            db.add(task)
+        
+        db.commit()
+        db.refresh(new_plan)
+        
+        print(f"✅ Action plan created with {len(ai_result['daily_tasks'])} daily tasks")
+        
+        return new_plan
+        
+    except Exception as e:
+        print(f"❌ Plan generation failed: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to generate plan: {str(e)}")
+
+
+@app.get("/action-plans/{github_username}", response_model=List[ActionPlanResponse])
+def get_action_plans(
+    github_username: str,
+    status: str = None,
+    db: Session = Depends(get_db)
+):
+    """Get all action plans for user"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    query = db.query(models.ActionPlan).filter(models.ActionPlan.user_id == user.id)
+    
+    if status:
+        query = query.filter(models.ActionPlan.status == status)
+    
+    query = query.options(
+        joinedload(models.ActionPlan.daily_tasks)
+    )
+    
+    plans = query.order_by(models.ActionPlan.start_date.desc()).all()
+    return plans
+
+
+@app.get("/action-plans/{github_username}/{plan_id}", response_model=ActionPlanResponse)
+def get_action_plan_detail(
+    github_username: str,
+    plan_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get detailed action plan"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    plan = db.query(models.ActionPlan).options(
+        joinedload(models.ActionPlan.daily_tasks)
+    ).filter(
+        models.ActionPlan.id == plan_id,
+        models.ActionPlan.user_id == user.id
+    ).first()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    
+    return plan
+
+
+@app.get("/action-plans/{github_username}/{plan_id}/today")
+def get_today_tasks(
+    github_username: str,
+    plan_id: int,
+    db: Session = Depends(get_db)
+):
+    """Get today's tasks from action plan"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    plan = db.query(models.ActionPlan).filter(
+        models.ActionPlan.id == plan_id,
+        models.ActionPlan.user_id == user.id
+    ).first()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    
+    # Get today's tasks
+    today_tasks = db.query(models.DailyTask).filter(
+        models.DailyTask.action_plan_id == plan_id,
+        models.DailyTask.day_number == plan.current_day
+    ).all()
+    
+    return {
+        'plan_id': plan_id,
+        'day_number': plan.current_day,
+        'focus_area': plan.focus_area,
+        'tasks': today_tasks,
+        'skills_to_focus': plan.skills_to_focus.get('skills', []) if plan.skills_to_focus else []
+    }
+
+
+@app.post("/action-plans/{github_username}/{plan_id}/tasks/{task_id}/complete")
+def complete_daily_task(
+    github_username: str,
+    plan_id: int,
+    task_id: int,
+    update: DailyTaskUpdate,
+    db: Session = Depends(get_db)
+):
+    """Mark task as complete and get AI feedback"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    task = db.query(models.DailyTask).filter(
+        models.DailyTask.id == task_id,
+        models.DailyTask.action_plan_id == plan_id
+    ).first()
+    
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+    
+    # Update task
+    task.status = update.status or 'completed'
+    task.actual_time_spent = update.actual_time_spent
+    task.difficulty_rating = update.difficulty_rating
+    task.notes = update.notes
+    task.completed_at = datetime.utcnow()
+    
+    # Get AI feedback
+    try:
+        feedback = action_plan_service.evaluate_task_completion(
+            task={'title': task.title, 'estimated_time': task.estimated_time},
+            user_feedback={
+                'notes': update.notes,
+                'actual_time': update.actual_time_spent,
+                'difficulty_rating': update.difficulty_rating
+            }
+        )
+        
+        task.ai_feedback = feedback['feedback']
+        
+        db.commit()
+        db.refresh(task)
+        
+        return {
+            'message': 'Task completed',
+            'feedback': feedback['feedback'],
+            'difficulty_adjustment': feedback['difficulty_adjustment']
+        }
+    except Exception as e:
+        db.commit()
+        return {
+            'message': 'Task completed (AI feedback unavailable)',
+            'error': str(e)
+        }
+
+
+@app.post("/action-plans/{github_username}/{plan_id}/advance-day")
+def advance_to_next_day(
+    github_username: str,
+    plan_id: int,
+    db: Session = Depends(get_db)
+):
+    """Move to next day in plan"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    plan = db.query(models.ActionPlan).filter(
+        models.ActionPlan.id == plan_id,
+        models.ActionPlan.user_id == user.id
+    ).first()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="Action plan not found")
+    
+    # Check if current day tasks are completed
+    current_tasks = db.query(models.DailyTask).filter(
+        models.DailyTask.action_plan_id == plan_id,
+        models.DailyTask.day_number == plan.current_day
+    ).all()
+    
+    incomplete = [t for t in current_tasks if t.status != 'completed']
+    
+    if incomplete and plan.current_day < 30:
+        return {
+            'warning': f'{len(incomplete)} tasks incomplete',
+            'incomplete_tasks': [t.title for t in incomplete],
+            'can_advance': True
+        }
+    
+    # Advance day
+    plan.current_day += 1
+    
+    # Update completion percentage
+    total_tasks = db.query(models.DailyTask).filter(
+        models.DailyTask.action_plan_id == plan_id
+    ).count()
+    
+    completed_tasks = db.query(models.DailyTask).filter(
+        models.DailyTask.action_plan_id == plan_id,
+        models.DailyTask.status == 'completed'
+    ).count()
+    
+    plan.completion_percentage = (completed_tasks / total_tasks * 100) if total_tasks > 0 else 0
+    
+    # Mark as completed if reached day 30
+    if plan.current_day > 30:
+        plan.status = 'completed'
+        plan.completed_at = datetime.utcnow()
+    
+    db.commit()
+    
+    return {
+        'message': 'Advanced to next day',
+        'current_day': plan.current_day,
+        'completion_percentage': plan.completion_percentage,
+        'plan_completed': plan.status == 'completed'
+    }
+
+
+# ==================== SKILL FOCUS & REMINDERS ====================
+
+@app.post("/skill-focus/{github_username}")
+def log_skill_focus(
+    github_username: str,
+    focus: SkillFocusCreate,
+    db: Session = Depends(get_db)
+):
+    """Log time spent on a skill"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Find active action plan
+    active_plan = db.query(models.ActionPlan).filter(
+        models.ActionPlan.user_id == user.id,
+        models.ActionPlan.status == 'active'
+    ).first()
+    
+    log = models.SkillFocusLog(
+        user_id=user.id,
+        action_plan_id=active_plan.id if active_plan else None,
+        skill_name=focus.skill_name,
+        time_spent=focus.time_spent,
+        activities={"activities": focus.activities},
+        progress_note=focus.progress_note,
+        confidence_level=focus.confidence_level
+    )
+    
+    db.add(log)
+    db.commit()
+    
+    return {"message": "Skill focus logged", "log_id": log.id}
+
+
+@app.get("/skill-focus/{github_username}/summary")
+def get_skill_focus_summary(
+    github_username: str,
+    days: int = 7,
+    db: Session = Depends(get_db)
+):
+    """Get summary of skill focus time"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    logs = db.query(models.SkillFocusLog).filter(
+        models.SkillFocusLog.user_id == user.id,
+        models.SkillFocusLog.focus_date >= since
+    ).all()
+    
+    # Aggregate by skill
+    skill_summary = {}
+    for log in logs:
+        if log.skill_name not in skill_summary:
+            skill_summary[log.skill_name] = {
+                'total_time': 0,
+                'sessions': 0,
+                'avg_confidence': []
+            }
+        skill_summary[log.skill_name]['total_time'] += log.time_spent
+        skill_summary[log.skill_name]['sessions'] += 1
+        skill_summary[log.skill_name]['avg_confidence'].append(log.confidence_level)
+    
+    # Calculate averages
+    for skill in skill_summary:
+        confidences = skill_summary[skill]['avg_confidence']
+        skill_summary[skill]['avg_confidence'] = sum(confidences) / len(confidences) if confidences else 0
+    
+    return {
+        'period_days': days,
+        'skills': skill_summary,
+        'total_time': sum(s['total_time'] for s in skill_summary.values()),
+        'total_sessions': len(logs)
+    }
+
+
+@app.post("/skill-reminders/{github_username}", response_model=SkillReminderResponse)
+def create_skill_reminder(
+    github_username: str,
+    reminder: SkillReminderCreate,
+    db: Session = Depends(get_db)
+):
+    """Create a skill focus reminder"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Calculate next reminder date
+    if reminder.frequency == 'daily':
+        next_date = datetime.utcnow() + timedelta(days=1)
+    elif reminder.frequency == 'weekly':
+        next_date = datetime.utcnow() + timedelta(weeks=1)
+    else:
+        next_date = datetime.utcnow() + timedelta(days=1)
+    
+    new_reminder = models.SkillReminder(
+        user_id=user.id,
+        skill_name=reminder.skill_name,
+        reminder_message=reminder.reminder_message,
+        priority=reminder.priority,
+        frequency=reminder.frequency,
+        next_reminder_date=next_date
+    )
+    
+    db.add(new_reminder)
+    db.commit()
+    db.refresh(new_reminder)
+    
+    return new_reminder
+
+
+@app.get("/skill-reminders/{github_username}", response_model=List[SkillReminderResponse])
+def get_skill_reminders(
+    github_username: str,
+    active_only: bool = True,
+    db: Session = Depends(get_db)
+):
+    """Get all skill reminders"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    query = db.query(models.SkillReminder).filter(
+        models.SkillReminder.user_id == user.id
+    )
+    
+    if active_only:
+        query = query.filter(models.SkillReminder.is_active == True)
+    
+    reminders = query.order_by(models.SkillReminder.next_reminder_date).all()
+    return reminders
 
 if __name__ == "__main__":
     import uvicorn

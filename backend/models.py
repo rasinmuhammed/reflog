@@ -18,6 +18,7 @@ class User(Base):
     
     # Relationships
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
+    action_plans = relationship("ActionPlan", back_populates="user", cascade="all, delete-orphan")
 
 class CheckIn(Base):
     __tablename__ = "checkins"
@@ -477,5 +478,210 @@ class GoalsDashboardResponse(BaseModel):
     active_goals: List[DashboardGoal]
     recent_milestones: List[DashboardMilestone]
 
+    class Config:
+        from_attributes = True
+
+class ActionPlan(Base):
+    __tablename__ = "action_plans"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    title = Column(String(500))
+    description = Column(Text)
+    plan_type = Column(String(50), default="30_day")  # 30_day, 60_day, 90_day, custom
+    focus_area = Column(String(100))  # e.g., "Backend Development", "System Design"
+    status = Column(String(50), default="active")  # active, completed, paused, abandoned
+    start_date = Column(DateTime, default=datetime.utcnow)
+    end_date = Column(DateTime)
+    completed_at = Column(DateTime, nullable=True)
+    
+    # AI-generated content
+    ai_analysis = Column(Text, nullable=True)
+    skills_to_focus = Column(JSON, nullable=True)  # List of skills with priorities
+    milestones = Column(JSON, nullable=True)  # Weekly milestones
+    
+    # Progress tracking
+    current_day = Column(Integer, default=1)
+    completion_percentage = Column(Float, default=0.0)
+    
+    # Relationships
+    user = relationship("User", back_populates="action_plans")
+    daily_tasks = relationship("DailyTask", back_populates="action_plan", cascade="all, delete-orphan")
+    skill_focus_logs = relationship("SkillFocusLog", back_populates="action_plan", cascade="all, delete-orphan")
+
+
+class DailyTask(Base):
+    __tablename__ = "daily_tasks"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id"), index=True)
+    day_number = Column(Integer)  # Day 1, Day 2, etc.
+    date = Column(DateTime, default=datetime.utcnow)
+    
+    title = Column(String(500))
+    description = Column(Text, nullable=True)
+    task_type = Column(String(50))  # learning, practice, project, review
+    difficulty = Column(String(20))  # easy, medium, hard
+    estimated_time = Column(Integer)  # minutes
+    
+    # Task details
+    resources = Column(JSON, nullable=True)  # Links, docs, tutorials
+    acceptance_criteria = Column(JSON, nullable=True)  # List of criteria
+    
+    # Status
+    status = Column(String(50), default="pending")  # pending, in_progress, completed, skipped
+    completed_at = Column(DateTime, nullable=True)
+    actual_time_spent = Column(Integer, nullable=True)  # minutes
+    
+    # Feedback
+    difficulty_rating = Column(Integer, nullable=True)  # 1-5, how hard was it actually
+    notes = Column(Text, nullable=True)
+    ai_feedback = Column(Text, nullable=True)
+    
+    # Relationships
+    action_plan = relationship("ActionPlan", back_populates="daily_tasks")
+
+
+class SkillFocusLog(Base):
+    __tablename__ = "skill_focus_logs"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    action_plan_id = Column(Integer, ForeignKey("action_plans.id"), index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    
+    skill_name = Column(String(200))
+    focus_date = Column(DateTime, default=datetime.utcnow)
+    time_spent = Column(Integer)  # minutes
+    activities = Column(JSON)  # List of what they did
+    progress_note = Column(Text, nullable=True)
+    confidence_level = Column(Integer)  # 1-10
+    
+    # Relationships
+    action_plan = relationship("ActionPlan", back_populates="skill_focus_logs")
+
+
+class SkillReminder(Base):
+    __tablename__ = "skill_reminders"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    skill_name = Column(String(200))
+    reminder_message = Column(Text)
+    priority = Column(String(20), default="medium")  # low, medium, high, urgent
+    frequency = Column(String(50), default="daily")  # daily, weekly, custom
+    next_reminder_date = Column(DateTime)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+# Pydantic Schemas
+
+class ActionPlanCreate(BaseModel):
+    title: str
+    description: str
+    plan_type: str = "30_day"
+    focus_area: str
+    skills_to_learn: List[str] = []
+    current_skill_level: str = "beginner"  # beginner, intermediate, advanced
+    available_hours_per_day: float = 2.0
+    end_date: Optional[datetime] = None
+
+
+class ActionPlanResponse(BaseModel):
+    id: int
+    title: str
+    description: str
+    plan_type: str
+    focus_area: str
+    status: str
+    start_date: datetime
+    end_date: Optional[datetime]
+    current_day: int
+    completion_percentage: float
+    ai_analysis: Optional[str]
+    skills_to_focus: Optional[Dict]
+    milestones: Optional[Dict]
+    daily_tasks: List['DailyTaskResponse'] = []
+    
+    class Config:
+        from_attributes = True
+
+
+class DailyTaskCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    task_type: str
+    difficulty: str = "medium"
+    estimated_time: int
+    resources: Optional[List[str]] = []
+    acceptance_criteria: Optional[List[str]] = []
+
+
+class DailyTaskResponse(BaseModel):
+    id: int
+    day_number: int
+    date: datetime
+    title: str
+    description: Optional[str]
+    task_type: str
+    difficulty: str
+    estimated_time: int
+    status: str
+    completed_at: Optional[datetime]
+    actual_time_spent: Optional[int]
+    resources: Optional[Dict]
+    acceptance_criteria: Optional[Dict]
+    difficulty_rating: Optional[int]
+    notes: Optional[str]
+    ai_feedback: Optional[str]
+    
+    class Config:
+        from_attributes = True
+
+
+class DailyTaskUpdate(BaseModel):
+    status: Optional[str] = None
+    actual_time_spent: Optional[int] = None
+    difficulty_rating: Optional[int] = None
+    notes: Optional[str] = None
+
+
+class SkillFocusCreate(BaseModel):
+    skill_name: str
+    time_spent: int
+    activities: List[str]
+    progress_note: Optional[str] = None
+    confidence_level: int
+
+
+class SkillFocusResponse(BaseModel):
+    id: int
+    skill_name: str
+    focus_date: datetime
+    time_spent: int
+    activities: Dict
+    progress_note: Optional[str]
+    confidence_level: int
+    
+    class Config:
+        from_attributes = True
+
+
+class SkillReminderCreate(BaseModel):
+    skill_name: str
+    reminder_message: str
+    priority: str = "medium"
+    frequency: str = "daily"
+
+
+class SkillReminderResponse(BaseModel):
+    id: int
+    skill_name: str
+    reminder_message: str
+    priority: str
+    frequency: str
+    next_reminder_date: datetime
+    is_active: bool
+    
     class Config:
         from_attributes = True

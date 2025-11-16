@@ -22,6 +22,7 @@ import NotificationBell from './NotificationBell'
 import Notifications from './Notifications'
 import Goals from './Goals'
 import DashboardOverview from './DashboardOverview'
+import ActionPlans from './ActionPlans'
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
 
@@ -59,7 +60,7 @@ interface DashboardData {
   }>
 }
 
-type TabType = 'overview' | 'chat' | 'commitments' | 'goals' | 'decisions' | 'history' | 'notifications'
+type TabType = 'overview' | 'chat' | 'commitments' |'action-plans' | 'goals' | 'decisions' | 'history' | 'notifications' 
 
 export default function Dashboard({ githubUsername }: DashboardProps) {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -160,6 +161,7 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
     { id: 'overview', label: 'Overview', icon: Target },
     { id: 'chat', label: 'Chat', icon: MessageCircle },
     { id: 'commitments', label: 'Commitments', icon: CalendarIcon },
+    { id: 'action-plans', label: 'Action Plans', icon: Target },
     { id: 'goals', label: 'Goals', icon: Target },
     { id: 'decisions', label: 'Decisions', icon: BookOpen },
     { id: 'history', label: 'History', icon: History },
@@ -467,6 +469,12 @@ export default function Dashboard({ githubUsername }: DashboardProps) {
               onReviewComplete={() => setRefreshKey(prev => prev + 1)}
             />
             <CommitmentCalendar githubUsername={githubUsername} />
+          </div>
+        )}
+
+        {activeTab === 'action-plans' && (
+          <div className="max-w-6xl mx-auto">
+            <ActionPlans githubUsername={githubUsername} />
           </div>
         )}
 
