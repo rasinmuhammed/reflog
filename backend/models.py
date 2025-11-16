@@ -19,6 +19,7 @@ class User(Base):
     # Relationships
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")
     action_plans = relationship("ActionPlan", back_populates="user", cascade="all, delete-orphan")
+    pomodoro_sessions = relationship("PomodoroSession", back_populates="user", cascade="all, delete-orphan")
 
 class CheckIn(Base):
     __tablename__ = "checkins"
@@ -685,3 +686,68 @@ class SkillReminderResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class PomodoroSession(Base):
+    __tablename__ = "pomodoro_sessions"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("users.id"), index=True)
+    checkin_id = Column(Integer, ForeignKey("checkins.id"), nullable=True, index=True)
+    
+    # Session details
+    session_type = Column(String(20), default="work")  # work, short_break, long_break
+    duration_minutes = Column(Integer, default=25)
+    completed = Column(Boolean, default=False)
+    
+    # Timestamps
+    started_at = Column(DateTime, default=datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+    paused_at = Column(DateTime, nullable=True)
+    
+    # Progress tracking
+    commitment_description = Column(Text, nullable=True)
+    notes = Column(Text, nullable=True)
+    focus_rating = Column(Integer, nullable=True)  # 1-5 rating
+    interruptions = Column(Integer, default=0)
+    
+    # Relationships
+    user = relationship("User", backpopulates="pomodoro_sessions")
+
+class PomodoroSessionCreate(BaseModel):
+    session_type: str = "work"
+    duration_minutes: int = 25
+    checkin_id: Optional[int] = None
+    commitment_description: Optional[str] = None
+
+class PomodoroSessionUpdate(BaseModel):
+    completed: Optional[bool] = None
+    notes: Optional[str] = None
+    focus_rating: Optional[int] = None
+    interruptions: Optional[int] = None
+    paused_at: Optional[datetime] = None
+
+class PomodoroSessionResponse(BaseModel):
+    id: int
+    session_type: str
+    duration_minutes: int
+    completed: bool
+    started_at: datetime
+    completed_at: Optional[datetime]
+    paused_at: Optional[datetime]
+    commitment_description: Optional[str]
+    notes: Optional[str]
+    focus_rating: Optional[int]
+    interruptions: int
+    
+    class Config:
+        from_attributes = True
+
+class PomodoroStatsResponse(BaseModel):
+    total_sessions: int
+    completed_sessions: int
+    total_work_minutes: int
+    avg_focus_rating: float
+    completion_rate: float
+    sessions_today: int
+    current_streak: int
+    best_streak: int

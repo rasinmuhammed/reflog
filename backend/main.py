@@ -9,8 +9,8 @@ from models import (
     AgentAdviceResponse, GitHubAnalysisResponse, ChatMessage,
     LifeDecisionCreate, LifeDecisionResponse, GoalsDashboardResponse,
     NotificationResponse, NotificationStats,
-    ActionPlanCreate, DailyTaskResponse, ActionPlanResponse, DailyTaskCreate, SkillFocusCreate, SkillFocusResponse,
-    DailyTaskUpdate, SkillReminderResponse, SkillReminderCreate
+    ActionPlanCreate, ActionPlanResponse, SkillFocusCreate,
+    DailyTaskUpdate, SkillReminderResponse, SkillReminderCreate,
 )
 from github_integration import GitHubAnalyzer
 from crew import SageMentorCrew
@@ -2526,6 +2526,288 @@ def get_skill_reminders(
     
     reminders = query.order_by(models.SkillReminder.next_reminder_date).all()
     return reminders
+
+@app.post("/pomodoro/{github_username}/start")
+def start_pomodoro_session(
+    github_username: str,
+    session: models.PomodoroSessionCreate,
+    db: Session = Depends(get_db)
+):
+    """Start a new Pomodoro session"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    # Check if there's an active session
+    active_session = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user.id,
+        models.PomodoroSession.completed == False,
+        models.PomodoroSession.paused_at == None
+    ).first()
+    
+    if active_session:
+        return {
+            "message": "Active session already exists",
+            "session": active_session
+        }
+    
+    new_session = models.PomodoroSession(
+        user_id=user.id,
+        checkin_id=session.checkin_id,
+        session_type=session.session_type,
+        duration_minutes=session.duration_minutes,
+        commitment_description=session.commitment_description
+    )
+    
+    db.add(new_session)
+    db.commit()
+    db.refresh(new_session)
+    
+    return {
+        "message": "Pomodoro session started",
+        "session": new_session
+    }
+
+
+@app.get("/pomodoro/{github_username}/active")
+def get_active_session(
+    github_username: str,
+    db: Session = Depends(get_db)
+):
+    """Get current active Pomodoro session"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    active_session = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user.id,
+        models.PomodoroSession.completed == False
+    ).order_by(models.PomodoroSession.started_at.desc()).first()
+    
+    if not active_session:
+        return {"has_active_session": False}
+    
+    return {
+        "has_active_session": True,
+        "session": active_session
+    }
+
+
+@app.patch("/pomodoro/{github_username}/{session_id}/complete")
+def complete_pomodoro_session(
+    github_username: str,
+    session_id: int,
+    update: models.PomodoroSessionUpdate,
+    db: Session = Depends(get_db)
+):
+    """Complete a Pomodoro session"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.id == session_id,
+        models.PomodoroSession.user_id == user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.completed = update.completed if update.completed is not None else True
+    session.completed_at = datetime.utcnow()
+    session.notes = update.notes
+    session.focus_rating = update.focus_rating
+    session.interruptions = update.interruptions if update.interruptions is not None else session.interruptions
+    
+    db.commit()
+    db.refresh(session)
+    
+    return {
+        "message": "Session completed",
+        "session": session
+    }
+
+
+@app.patch("/pomodoro/{github_username}/{session_id}/pause")
+def pause_pomodoro_session(
+    github_username: str,
+    session_id: int,
+    db: Session = Depends(get_db)
+):
+    """Pause a Pomodoro session"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.id == session_id,
+        models.PomodoroSession.user_id == user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.paused_at = datetime.utcnow()
+    db.commit()
+    
+    return {"message": "Session paused"}
+
+
+@app.patch("/pomodoro/{github_username}/{session_id}/resume")
+def resume_pomodoro_session(
+    github_username: str,
+    session_id: int,
+    db: Session = Depends(get_db)
+):
+    """Resume a paused Pomodoro session"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.id == session_id,
+        models.PomodoroSession.user_id == user.id
+    ).first()
+    
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    
+    session.paused_at = None
+    db.commit()
+    
+    return {"message": "Session resumed"}
+
+
+@app.get("/pomodoro/{github_username}/stats", response_model=models.PomodoroStatsResponse)
+def get_pomodoro_stats(
+    github_username: str,
+    days: int = 30,
+    db: Session = Depends(get_db)
+):
+    """Get Pomodoro statistics"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    since = datetime.utcnow() - timedelta(days=days)
+    
+    sessions = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user.id,
+        models.PomodoroSession.started_at >= since
+    ).all()
+    
+    completed_sessions = [s for s in sessions if s.completed]
+    work_sessions = [s for s in completed_sessions if s.session_type == 'work']
+    
+    # Today's sessions
+    today_start = datetime.combine(datetime.now().date(), datetime.min.time())
+    sessions_today = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user.id,
+        models.PomodoroSession.started_at >= today_start
+    ).count()
+    
+    # Calculate streaks
+    current_streak, best_streak = calculate_pomodoro_streaks(user.id, db)
+    
+    # Average focus rating
+    rated_sessions = [s for s in completed_sessions if s.focus_rating]
+    avg_focus = sum(s.focus_rating for s in rated_sessions) / len(rated_sessions) if rated_sessions else 0
+    
+    return {
+        "total_sessions": len(sessions),
+        "completed_sessions": len(completed_sessions),
+        "total_work_minutes": sum(s.duration_minutes for s in work_sessions),
+        "avg_focus_rating": round(avg_focus, 2),
+        "completion_rate": round(len(completed_sessions) / len(sessions) * 100, 1) if sessions else 0,
+        "sessions_today": sessions_today,
+        "current_streak": current_streak,
+        "best_streak": best_streak
+    }
+
+
+@app.get("/pomodoro/{github_username}/history")
+def get_pomodoro_history(
+    github_username: str,
+    limit: int = 50,
+    db: Session = Depends(get_db)
+):
+    """Get Pomodoro session history"""
+    user = db.query(models.User).filter(
+        models.User.github_username == github_username
+    ).first()
+    
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    sessions = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user.id
+    ).order_by(models.PomodoroSession.started_at.desc()).limit(limit).all()
+    
+    return {"sessions": sessions}
+
+
+def calculate_pomodoro_streaks(user_id: int, db: Session) -> tuple:
+    """Calculate current and best Pomodoro streaks"""
+    # Get all days with completed sessions
+    sessions = db.query(models.PomodoroSession).filter(
+        models.PomodoroSession.user_id == user_id,
+        models.PomodoroSession.completed == True
+    ).order_by(models.PomodoroSession.started_at.desc()).all()
+    
+    if not sessions:
+        return 0, 0
+    
+    # Group by date
+    dates = set()
+    for session in sessions:
+        dates.add(session.started_at.date())
+    
+    sorted_dates = sorted(dates, reverse=True)
+    
+    # Calculate current streak
+    current_streak = 0
+    today = datetime.now().date()
+    check_date = today
+    
+    for date in sorted_dates:
+        if date == check_date or (check_date - date).days == 1:
+            current_streak += 1
+            check_date = date
+        else:
+            break
+    
+    # Calculate best streak
+    best_streak = 0
+    temp_streak = 1
+    
+    for i in range(len(sorted_dates) - 1):
+        if (sorted_dates[i] - sorted_dates[i + 1]).days == 1:
+            temp_streak += 1
+            best_streak = max(best_streak, temp_streak)
+        else:
+            temp_streak = 1
+    
+    best_streak = max(best_streak, temp_streak, current_streak)
+    
+    return current_streak, best_streak
 
 if __name__ == "__main__":
     import uvicorn
