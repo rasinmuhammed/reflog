@@ -1,13 +1,28 @@
+# Core Framework
 fastapi
-uvicorn
+uvicorn[standard]
+pydantic
+python-dotenv
+python-multipart
+
+# Database - PostgreSQL with async support
+sqlalchemy[asyncio]
+asyncpg
+psycopg2-binary
+aiosqlite
+
+# AI/ML
 crewai
 crewai-tools
 litellm
-sqlalchemy
-pydantic
-python-dotenv
-PyGithub
-python-multipart
+groq
+
+# HTTP Client
 httpx
-psycopg2-binary
+aiohttp
+
+# GitHub Integration
+PyGithub
+
+# Utilities
 schedule
