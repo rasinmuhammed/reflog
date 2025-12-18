@@ -51,11 +51,15 @@ async def get_agent_advice_history(
 @router.post("/chat/{github_username}")
 async def chat_with_mentor(
     github_username: str,
-    message: ChatMessage,
+    request: models.ChatRequest,  # Changed from ChatMessage to ChatRequest
     db: AsyncSession = Depends(get_user_db),
     system_db: AsyncSession = Depends(get_system_db),
     x_groq_key: Optional[str] = Header(None, alias="X-Groq-Key")
 ):
+    # Extract message from request
+    user_message = request.message
+    user_context = request.context or {}
+    
     # Validate API Key format
     if x_groq_key:
         if not x_groq_key.startswith("gsk_"):
@@ -84,7 +88,7 @@ async def chat_with_mentor(
     ).order_by(models.LifeEvent.timestamp.desc()).limit(10))
     life_events = result.scalars().all()
     
-    user_context = {
+    db_context = {
         "github": {
             "total_repos": github_analysis.total_repos if github_analysis else 0,
             "active_repos": github_analysis.active_repos if github_analysis else 0,
@@ -108,9 +112,9 @@ async def chat_with_mentor(
     
     async def event_generator():
         async for event in sage_crew.stream_chat_deliberation(
-            message.message,
-            user_context,
-            message.context,
+            user_message,
+            db_context,
+            user_context,  # frontend-provided context
             api_key=x_groq_key
         ):
             if event:
@@ -130,7 +134,7 @@ async def chat_with_mentor(
                             agent_name="Multi-Agent Chat",
                             advice=final_data["final_response"],
                             evidence={
-                                "user_message": message.message, 
+                                "user_message": user_message, 
                                 "key_insights": final_data["key_insights"],
                                 "actions": final_data["actions"]
                             },

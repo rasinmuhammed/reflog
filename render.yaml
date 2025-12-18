@@ -1,0 +1,22 @@
+# Render.com deployment configuration
+# Deploy FastAPI backend for free
+
+services:
+  - type: web
+    name: reflog-backend
+    runtime: python
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: NEON_SYSTEM_DB_URL
+        sync: false  # Set manually in dashboard
+      - key: GROQ_API_KEY
+        sync: false
+      - key: ALLOWED_ORIGINS
+        sync: false  # Set to your frontend URL
+      - key: PYTHON_VERSION
+        value: 3.12.0
+    healthCheckPath: /

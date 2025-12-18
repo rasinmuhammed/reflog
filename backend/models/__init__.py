@@ -4,4 +4,6 @@ from .goal import Goal, SubGoal, Task, Milestone, GoalProgress, ActionPlan, Dail
 from .leetcode import LeetCodeProblem, RepetitionLog
 from .notification import Notification
 from .insights import GitHubAnalysis, AgentAdvice, LifeEvent
+from .quick_task import QuickTask
 from .schemas import *
+

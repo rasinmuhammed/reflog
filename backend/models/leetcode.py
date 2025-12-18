@@ -11,10 +11,10 @@ class LeetCodeProblem(UserBase):
     title = Column(String)
     difficulty = Column(String)
     pattern = Column(String)
-    url = Column(String)
+    link = Column(String)  # URL to the problem
     
     # SRS Fields
-    repetition_level = Column(Integer, default=0) # 0=New, 1=1d, 2=3d, 3=7d, 4=14d, 5=30d
+    mastery_level = Column(Integer, default=1)  # 1-5 mastery level
     last_reviewed = Column(DateTime, default=datetime.utcnow)
     next_review = Column(DateTime, default=datetime.utcnow)
     

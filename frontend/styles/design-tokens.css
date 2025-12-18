@@ -1,0 +1,273 @@
+/* 
+ * PREMIUM DESIGN SYSTEM
+ * Crafted with world-class design thinking
+ * 
+ * Philosophy:
+ * - Rich, not flat
+ * - Depth through layers
+ * - Motion that delights
+ * - Accessibility first
+ */
+
+:root {
+    /* ══════════════════════════════════════════
+     COLOR SYSTEM - Rich & Premium
+     ══════════════════════════════════════════ */
+
+    /* Primary - The signature purple */
+    --color-primary-50: #faf5ff;
+    --color-primary-100: #f3e8ff;
+    --color-primary-200: #e9d5ff;
+    --color-primary-300: #d8b4fe;
+    --color-primary-400: #c084fc;
+    --color-primary-500: #a855f7;
+    --color-primary-600: #9333ea;
+    --color-primary-700: #7c3aed;
+    --color-primary-800: #6b21a8;
+    --color-primary-900: #581c87;
+
+    /* Surface - Deep, rich blacks */
+    --color-surface-0: #0a0a0b;
+    --color-surface-50: #121214;
+    --color-surface-100: #1a1a1e;
+    --color-surface-200: #242428;
+    --color-surface-300: #2e2e33;
+    --color-surface-400: #3a3a40;
+
+    /* Text - Warm whites */
+    --color-text-primary: #fafaf9;
+    --color-text-secondary: rgba(250, 250, 249, 0.7);
+    --color-text-tertiary: rgba(250, 250, 249, 0.5);
+    --color-text-disabled: rgba(250, 250, 249, 0.3);
+
+    /* Accent colors - Vibrant & intentional */
+    --color-success: #22c55e;
+    --color-success-soft: rgba(34, 197, 94, 0.15);
+    --color-warning: #f59e0b;
+    --color-warning-soft: rgba(245, 158, 11, 0.15);
+    --color-error: #ef4444;
+    --color-error-soft: rgba(239, 68, 68, 0.15);
+    --color-info: #3b82f6;
+    --color-info-soft: rgba(59, 130, 246, 0.15);
+
+    /* Streak flame gradient */
+    --gradient-flame: linear-gradient(135deg, #f97316, #ef4444, #dc2626);
+
+    /* Premium gradients */
+    --gradient-primary: linear-gradient(135deg, #9333ea 0%, #7c3aed 50%, #6366f1 100%);
+    --gradient-surface: linear-gradient(180deg, var(--color-surface-100) 0%, var(--color-surface-0) 100%);
+    --gradient-glow: radial-gradient(ellipse at center, rgba(147, 51, 234, 0.15) 0%, transparent 70%);
+
+    /* ══════════════════════════════════════════
+     TYPOGRAPHY - Inter Variable
+     ══════════════════════════════════════════ */
+
+    --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+    /* Type scale - Minor third (1.2) */
+    --text-xs: 0.694rem;
+    --text-sm: 0.833rem;
+    --text-base: 1rem;
+    --text-lg: 1.2rem;
+    --text-xl: 1.44rem;
+    --text-2xl: 1.728rem;
+    --text-3xl: 2.074rem;
+    --text-4xl: 2.488rem;
+
+    /* Font weights */
+    --font-normal: 400;
+    --font-medium: 500;
+    --font-semibold: 600;
+    --font-bold: 700;
+
+    /* Line heights */
+    --leading-tight: 1.25;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.75;
+
+    /* ══════════════════════════════════════════
+     SPACING - 4px grid
+     ══════════════════════════════════════════ */
+
+    --space-0: 0;
+    --space-1: 0.25rem;
+    /* 4px */
+    --space-2: 0.5rem;
+    /* 8px */
+    --space-3: 0.75rem;
+    /* 12px */
+    --space-4: 1rem;
+    /* 16px */
+    --space-5: 1.25rem;
+    /* 20px */
+    --space-6: 1.5rem;
+    /* 24px */
+    --space-8: 2rem;
+    /* 32px */
+    --space-10: 2.5rem;
+    /* 40px */
+    --space-12: 3rem;
+    /* 48px */
+    --space-16: 4rem;
+    /* 64px */
+    --space-20: 5rem;
+    /* 80px */
+
+    /* ══════════════════════════════════════════
+     BORDERS & RADIUS
+     ══════════════════════════════════════════ */
+
+    --radius-sm: 6px;
+    --radius-md: 10px;
+    --radius-lg: 14px;
+    --radius-xl: 20px;
+    --radius-2xl: 28px;
+    --radius-full: 9999px;
+
+    --border-subtle: 1px solid rgba(255, 255, 255, 0.06);
+    --border-default: 1px solid rgba(255, 255, 255, 0.1);
+    --border-strong: 1px solid rgba(255, 255, 255, 0.15);
+    --border-accent: 1px solid rgba(147, 51, 234, 0.4);
+
+    /* ══════════════════════════════════════════
+     SHADOWS - Multi-layer depth
+     ══════════════════════════════════════════ */
+
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2);
+    --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3), 0 2px 4px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 16px rgba(0, 0, 0, 0.3), 0 4px 8px rgba(0, 0, 0, 0.2);
+    --shadow-xl: 0 16px 32px rgba(0, 0, 0, 0.35), 0 8px 16px rgba(0, 0, 0, 0.25);
+
+    /* Glow effects */
+    --shadow-glow-sm: 0 0 20px rgba(147, 51, 234, 0.2);
+    --shadow-glow-md: 0 0 40px rgba(147, 51, 234, 0.25);
+    --shadow-glow-lg: 0 0 60px rgba(147, 51, 234, 0.3);
+
+    /* ══════════════════════════════════════════
+     MOTION - Smooth & intentional
+     ══════════════════════════════════════════ */
+
+    --duration-fast: 150ms;
+    --duration-normal: 250ms;
+    --duration-slow: 400ms;
+    --duration-slower: 600ms;
+
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+    --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+    /* ══════════════════════════════════════════
+     Z-INDEX SCALE
+     ══════════════════════════════════════════ */
+
+    --z-base: 0;
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-overlay: 300;
+    --z-modal: 400;
+    --z-popover: 500;
+    --z-toast: 600;
+    --z-max: 9999;
+}
+
+/* ══════════════════════════════════════════
+   GLOBAL STYLES
+   ══════════════════════════════════════════ */
+
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: var(--color-surface-0);
+    color: var(--color-text-primary);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: var(--leading-normal);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* Selection */
+::selection {
+    background-color: rgba(147, 51, 234, 0.3);
+    color: var(--color-text-primary);
+}
+
+/* Scrollbar - Premium style */
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--color-surface-400);
+    border-radius: var(--radius-full);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--color-surface-400);
+}
+
+/* ══════════════════════════════════════════
+   UTILITY CLASSES
+   ══════════════════════════════════════════ */
+
+.glass {
+    background: rgba(26, 26, 30, 0.8);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: var(--border-subtle);
+}
+
+.glass-card {
+    background: linear-gradient(135deg,
+            rgba(36, 36, 40, 0.6) 0%,
+            rgba(26, 26, 30, 0.8) 100%);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: var(--border-subtle);
+    border-radius: var(--radius-xl);
+}
+
+.text-gradient {
+    background: var(--gradient-primary);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.glow {
+    box-shadow: var(--shadow-glow-md);
+}
+
+.shimmer {
+    background: linear-gradient(90deg,
+            var(--color-surface-200) 0%,
+            var(--color-surface-300) 50%,
+            var(--color-surface-200) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: 200% 0;
+    }
+
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+/* Focus ring - Accessible */
+.focus-ring:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-surface-0), 0 0 0 4px var(--color-primary-500);
+}

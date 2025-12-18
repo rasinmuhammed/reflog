@@ -2,10 +2,10 @@
 
 import { useUser } from '@clerk/nextjs'
 import { useState, useEffect } from 'react'
-import Dashboard from '@/components/features/dashboard/Dashboard'
+import PremiumDashboard from '@/components/features/dashboard/PremiumDashboard'
 import Onboarding from '../components/features/onboarding/Onboarding'
 import LandingPage from '../components/features/onboarding/LandingPage'
-import { Loader2 } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 
 export default function Home() {
   const { isSignedIn, isLoaded, user } = useUser()
@@ -40,13 +40,16 @@ export default function Home() {
     setIsOnboarded(true)
   }
 
-  // Show loading state while checking authentication
+  // Premium loading state
   if (!isLoaded || checkingOnboarding) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-950 via-gray-900 to-gray-950 flex items-center justify-center">
+      <div className="min-h-screen bg-[#0a0a0b] flex items-center justify-center">
         <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-gray-400">Loading...</p>
+          <div className="w-16 h-16 mx-auto mb-6 rounded-2xl bg-gradient-to-br from-purple-600 to-indigo-600 flex items-center justify-center animate-pulse">
+            <Sparkles className="w-8 h-8 text-white" />
+          </div>
+          <div className="w-8 h-8 mx-auto rounded-full border-2 border-purple-500/30 border-t-purple-500 animate-spin" />
+          <p className="text-white/50 mt-4 text-sm">Loading your workspace...</p>
         </div>
       </div>
     )
@@ -60,16 +63,12 @@ export default function Home() {
   // Show onboarding if signed in but not onboarded
   if (!isOnboarded) {
     return (
-      <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+      <main className="min-h-screen bg-[#0a0a0b]">
         <Onboarding onComplete={handleOnboardingComplete} />
       </main>
     )
   }
 
-  // Show dashboard if fully onboarded
-  return (
-    <main className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
-      <Dashboard githubUsername={githubUsername!} />
-    </main>
-  )
+  // Show Premium Dashboard
+  return <PremiumDashboard githubUsername={githubUsername!} />
 }

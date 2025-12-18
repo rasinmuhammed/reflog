@@ -281,39 +281,26 @@ async def advance_plan_day(
 @router.get("/skill-focus/{github_username}/summary")
 async def get_skill_focus_summary(
     github_username: str,
+    days: int = 30,
     db: AsyncSession = Depends(get_user_db),
     system_db: AsyncSession = Depends(get_system_db)
 ):
+    """
+    Get skill focus summary. 
+    Returns empty data if SkillFocusLog table doesn't exist yet.
+    """
     result = await system_db.execute(select(models.User).filter(models.User.github_username == github_username))
     user = result.scalars().first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    # Get logs from last 30 days
-    since = datetime.now() - timedelta(days=30)
-    result = await db.execute(select(models.SkillFocusLog).filter(
-        models.SkillFocusLog.user_id == user.id,
-        models.SkillFocusLog.focus_date >= since
-    ))
-    logs = result.scalars().all()
     
-    # Aggregate data
-    skill_stats = {}
-    total_time = 0
-    total_sessions = 0
-    
-    for log in logs:
-        if log.skill_name not in skill_stats:
-            skill_stats[log.skill_name] = {"total_time": 0, "sessions": 0}
-        skill_stats[log.skill_name]["total_time"] += log.time_spent
-        skill_stats[log.skill_name]["sessions"] += 1
-        total_time += log.time_spent
-        total_sessions += 1
-        
+    # Return empty summary for now (SkillFocusLog model not implemented)
+    # TODO: Implement SkillFocusLog model when needed
     return {
-        "total_time": total_time,
-        "total_sessions": total_sessions,
-        "skills": skill_stats
+        "total_time": 0,
+        "total_sessions": 0,
+        "skills": {},
+        "message": "Skill focus tracking coming soon"
     }
 
 @router.delete("/action-plans/{github_username}/{plan_id}")

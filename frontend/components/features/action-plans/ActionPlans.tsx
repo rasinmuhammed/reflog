@@ -142,9 +142,27 @@ export default function ActionPlans({ githubUsername }: { githubUsername: string
 
   if (contextLoading && plans.length === 0) {
     return (
-      <div className="text-center py-16 text-[#FBFAEE]/70">
-        <Loader2 className="w-8 h-8 animate-spin mx-auto mb-3 text-[#933DC9]" />
-        <p>Loading your action plans...</p>
+      <div className="space-y-6 animate-in fade-in duration-300">
+        {/* Header skeleton */}
+        <div className="flex items-center justify-between">
+          <div className="animate-pulse bg-white/[0.05] h-8 w-48 rounded-lg" />
+          <div className="animate-pulse bg-white/[0.05] h-10 w-32 rounded-xl" />
+        </div>
+
+        {/* Cards skeleton */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse bg-white/[0.03] h-44 rounded-2xl border border-white/[0.05]" />
+          ))}
+        </div>
+
+        {/* Tasks skeleton */}
+        <div className="space-y-3">
+          <div className="animate-pulse bg-white/[0.05] h-5 w-32 rounded" />
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse bg-white/[0.03] h-16 rounded-xl border border-white/[0.05]" />
+          ))}
+        </div>
       </div>
     )
   }

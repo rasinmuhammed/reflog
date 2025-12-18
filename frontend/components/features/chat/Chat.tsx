@@ -216,7 +216,8 @@ export default function Chat({ githubUsername }: ChatProps) {
               const newMessages = [...prev]
               const lastMessage = newMessages[newMessages.length - 1]
 
-              if (lastMessage.type !== 'assistant') return prev
+              // Safety check: if no messages or last message isn't assistant, return
+              if (!lastMessage || lastMessage.type !== 'assistant') return prev
 
               if (data.type === 'step') {
                 // Update raw deliberation

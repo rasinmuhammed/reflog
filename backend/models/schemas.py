@@ -226,6 +226,11 @@ class ChatMessage(BaseModel):
     role: str
     content: str
 
+class ChatRequest(BaseModel):
+    """Request body for chat endpoint - matches frontend format"""
+    message: str
+    context: Optional[Dict] = None
+
 class AgentAdviceResponse(BaseModel):
     agent_name: str
     advice: str

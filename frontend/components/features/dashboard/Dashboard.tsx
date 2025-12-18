@@ -47,6 +47,7 @@ import MorningStandup from '@/components/features/productivity/MorningStandup'
 import FlowMode from '@/components/features/productivity/FlowMode'
 import TwoMinuteTimer from '@/components/features/productivity/TwoMinuteTimer'
 import UnifiedDashboard from '@/components/features/analytics/UnifiedDashboard'
+import QuickTasks from '@/components/features/tasks/QuickTasks'
 
 // Lazy load heavy components
 const Chat = dynamic(() => import('@/components/features/chat/Chat'), {
@@ -212,15 +213,11 @@ function DashboardContent({ githubUsername }: DashboardProps) {
     }
   }
 
+  // MVP: Simplified to 4 core tabs
   const tabs = [
-    { id: 'overview', label: 'Overview', icon: Activity },
-    { id: 'focus', label: 'Focus', icon: Timer },
-    { id: 'learning', label: 'Learning', icon: BookOpen },
+    { id: 'overview', label: 'Today', icon: CheckCircle },
     { id: 'goals', label: 'Goals', icon: Target },
-    { id: 'decisions', label: 'Decisions', icon: Brain },
-    { id: 'analytics', label: 'Analytics', icon: BarChart2 },
-    { id: 'history', label: 'History', icon: History },
-    { id: 'chat', label: 'Chat', icon: MessageCircle },
+    { id: 'chat', label: 'AI Coach', icon: MessageCircle },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ]
 
@@ -414,32 +411,38 @@ function DashboardContent({ githubUsername }: DashboardProps) {
               <p className="text-[#FBFAEE]/60">Here's what's happening in your workspace today.</p>
             </header>
 
-            <QuickActionPills onAction={handleQuickAction} />
-
+            {/* Quick Tasks - Main Feature */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2 space-y-8">
-                <UnifiedDashboard
-                  githubUsername={githubUsername}
-                  onReviewComplete={refresh}
-                  onCheckIn={() => setShowCheckin(true)}
-                  suggestions={suggestions}
-                  onNavigate={(tab) => setActiveTab(tab as TabType)}
-                />
-                <CommitmentCalendar githubUsername={githubUsername} />
+              <div className="lg:col-span-2 space-y-6">
+                <QuickTasks githubUsername={githubUsername} />
+
+                {/* Streak Card */}
+                <div className="glass-card p-6 rounded-2xl border border-white/5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="bg-orange-500/10 p-3 rounded-xl">
+                        <Flame className="w-6 h-6 text-orange-500" />
+                      </div>
+                      <div>
+                        <div className="text-3xl font-bold text-[#FBFAEE]">
+                          {data?.user?.streak || 0} day streak
+                        </div>
+                        <p className="text-sm text-[#FBFAEE]/60">Best: {data?.user?.best_streak || 0} days</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowCheckin(true)}
+                      className="px-4 py-2 bg-gradient-to-r from-[#933DC9] to-[#53118F] text-white rounded-xl text-sm font-medium hover:brightness-110 transition"
+                    >
+                      Daily Check-in
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-8">
+
+              {/* Sidebar */}
+              <div className="space-y-6">
                 <PomodoroTimer githubUsername={githubUsername} />
-                <AIInsightsFeed
-                  insights={data?.recent_advice?.map((advice: any) => ({
-                    id: advice.id,
-                    agent: advice.agent,
-                    advice: advice.advice,
-                    date: advice.date,
-                    type: advice.type
-                  })) || []}
-                  onViewAll={() => setActiveTab('history')}
-                />
-                <InteractionHistory githubUsername={githubUsername} limit={3} />
               </div>
             </div>
           </div>
